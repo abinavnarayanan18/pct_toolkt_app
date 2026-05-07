@@ -1,0 +1,23 @@
+{
+  "name": "pct-catalyst-app",
+  "version": "1.0.0",
+  "description": "PCT Catalyst — Leadership Transformation Assessment Tool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "bcrypt": "^5.1.1",
+    "better-sqlite3": "^9.4.3",
+    "compression": "^1.8.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "express-rate-limit": "^8.5.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "uuid": "^9.0.1"
+  }
+}

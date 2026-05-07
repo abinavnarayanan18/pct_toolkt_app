@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PCT Catalyst — Leadership Transformation Assessment</title>
+  <meta name="description" content="PCT Catalyst: A leadership transformation assessment tool built on the People-Centered Transformation methodology by Tony O'Driscoll, Duke University." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,300&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="/styles.css" />
+
+  <!-- React 18 via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel Standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    #root { min-height: 100vh; }
+    .app-loading {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      background: var(--bg);
+      color: var(--ink-3);
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div class="app-loading">
+      <div class="spinner spinner-lg"></div>
+      <span>Loading PCT Catalyst…</span>
+    </div>
+  </div>
+
+  <!-- Data: PCT elements (must load before JSX components) -->
+  <script src="/data.js"></script>
+
+  <!-- JSX Components — loaded in dependency order -->
+  <script type="text/babel" src="/radar.jsx"></script>
+  <script type="text/babel" src="/screens.jsx"></script>
+  <script type="text/babel" src="/admin.jsx"></script>
+  <script type="text/babel" src="/app.jsx"></script>
+</body>
+</html>
