@@ -1,5 +1,9 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
+function isAIAvailable() {
+  return !!process.env.ANTHROPIC_API_KEY;
+}
+
 let client;
 function getClient() {
   if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -234,4 +238,4 @@ Return ONLY the JSON object. No preamble, no markdown fences.`;
   return JSON.parse(text);
 }
 
-module.exports = { generateIndividualSummary, generateCohortSynthesis };
+module.exports = { isAIAvailable, generateIndividualSummary, generateCohortSynthesis };

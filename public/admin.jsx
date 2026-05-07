@@ -11,6 +11,7 @@ function AdminApp() {
   const [cohortModal, setCohortModal] = React.useState(null);
   const [synthResult, setSynthResult] = React.useState(null);
   const [synthLoading, setSynthLoading] = React.useState(false);
+  const [aiAvailable, setAiAvailable] = React.useState(null);
 
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -37,6 +38,10 @@ function AdminApp() {
     const data = await r.json();
     if (Array.isArray(data)) setResponses(data);
   }
+
+  React.useEffect(() => {
+    fetch('/api/ai/status').then(r => r.json()).then(data => setAiAvailable(!!data.available));
+  }, []);
 
   React.useEffect(() => {
     if (token) {
@@ -96,6 +101,7 @@ function AdminApp() {
             selectedCohort={selectedCohort}
             responses={responses}
             token={token}
+            aiAvailable={aiAvailable}
             onSelectCohort={c => { setSelectedCohort(c); loadResponses(c.id); }}
             onOpenResponse={r => setSlideoverResponse(r)}
             onRefresh={() => selectedCohort && loadResponses(selectedCohort.id)}
@@ -135,6 +141,7 @@ function AdminApp() {
           <ResponseSlideover
             response={slideoverResponse}
             token={token}
+            aiAvailable={aiAvailable}
             onClose={() => setSlideoverResponse(null)}
             onDelete={async () => {
               await fetch(`/api/responses/${slideoverResponse.id}`, { method: 'DELETE', headers: authHeader });
@@ -365,7 +372,7 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
 }
 
 // ── Responses Tab ─────────────────────────────────────────────
-function AdminResponses({ cohorts, selectedCohort, responses, token, onSelectCohort, onOpenResponse, onRefresh, onToggleRelease, onSynthesize, synthResult, synthLoading }) {
+function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable, onSelectCohort, onOpenResponse, onRefresh, onToggleRelease, onSynthesize, synthResult, synthLoading }) {
   const [showSynth, setShowSynth] = React.useState(false);
 
   async function handleExport() {
@@ -395,6 +402,8 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, onSelectCoh
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => { setShowSynth(true); onSynthesize(); }}
+                disabled={!aiAvailable}
+                title={!aiAvailable ? 'API key not configured' : undefined}
               >
                 ✦ Cohort Synthesis
               </button>
@@ -559,7 +568,7 @@ function CohortSynthesisDisplay({ synthesis }) {
 }
 
 // ── Response Slide-over ───────────────────────────────────────
-function ResponseSlideover({ response, token, onClose, onDelete }) {
+function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) {
   const [aiSummary, setAiSummary] = React.useState(() => {
     try { return response.ai_summary ? JSON.parse(response.ai_summary) : null; } catch { return null; }
   });
@@ -671,7 +680,8 @@ function ResponseSlideover({ response, token, onClose, onDelete }) {
               <button
                 className="btn btn-primary btn-sm"
                 onClick={generateAI}
-                disabled={aiLoading}
+                disabled={aiLoading || !aiAvailable}
+                title={!aiAvailable ? 'API key not configured' : undefined}
               >
                 {aiLoading ? <><span className="spinner" style={{ width: 12, height: 12 }} /> Generating…</> : aiSummary ? '✓ Generated' : 'Generate'}
               </button>

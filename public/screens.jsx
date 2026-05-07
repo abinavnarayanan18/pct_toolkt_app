@@ -699,6 +699,7 @@ function Step6Summary({ response, cohort, responseId }) {
   const [aiLoading, setAiLoading] = React.useState(false);
   const [aiError, setAiError] = React.useState(null);
   const [radarData, setRadarData] = React.useState(null);
+  const [aiAvailable, setAiAvailable] = React.useState(null);
 
   const scores = React.useMemo(() => {
     try { return JSON.parse(response?.scores || '[]'); } catch { return []; }
@@ -735,11 +736,15 @@ function Step6Summary({ response, cohort, responseId }) {
   }, []);
 
   React.useEffect(() => {
-    // Auto-trigger AI analysis if not already done
-    if (!aiSummary && !aiLoading) {
+    fetch('/api/ai/status').then(r => r.json()).then(data => setAiAvailable(!!data.available));
+  }, []);
+
+  React.useEffect(() => {
+    // Auto-trigger AI analysis only when availability is confirmed and analysis not yet done
+    if (aiAvailable === true && !aiSummary && !aiLoading) {
       triggerAI();
     }
-  }, [submitted]);
+  }, [aiAvailable]);
 
   async function triggerAI() {
     setAiLoading(true);
@@ -874,7 +879,13 @@ function Step6Summary({ response, cohort, responseId }) {
           </div>
         </div>
 
-        {aiLoading && (
+        {aiAvailable === false && (
+          <div style={{ padding: 20 }}>
+            <p className="muted">AI analysis unavailable — contact your administrator</p>
+          </div>
+        )}
+
+        {aiAvailable !== false && aiLoading && (
           <div className="loading-block">
             <div className="spinner spinner-lg" />
             <p>Generating your leadership analysis…</p>
@@ -882,14 +893,14 @@ function Step6Summary({ response, cohort, responseId }) {
           </div>
         )}
 
-        {aiError && !aiLoading && (
+        {aiAvailable !== false && aiError && !aiLoading && (
           <div style={{ padding: 20 }}>
             <div className="alert alert-error" style={{ marginBottom: 12 }}>{aiError}</div>
             <button className="btn btn-primary btn-sm" onClick={triggerAI}>Try Again</button>
           </div>
         )}
 
-        {aiSummary && !aiLoading && (
+        {aiAvailable !== false && aiSummary && !aiLoading && (
           <AISummaryDisplay summary={aiSummary} onRegenerate={triggerAI} />
         )}
       </div>

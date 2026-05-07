@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const { cohortHelpers, responseHelpers, adminHelpers } = require('./db');
-const { generateIndividualSummary, generateCohortSynthesis } = require('./ai');
+const { isAIAvailable, generateIndividualSummary, generateCohortSynthesis } = require('./ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -147,6 +147,9 @@ app.patch('/api/cohorts/:id/release', requireAuth, (req, res) => {
 });
 
 app.post('/api/cohorts/:id/synthesize', requireAuth, async (req, res) => {
+  if (!isAIAvailable()) {
+    return res.status(503).json({ error: 'AI synthesis unavailable — ANTHROPIC_API_KEY not configured' });
+  }
   const cohort = cohortHelpers.get(req.params.id);
   if (!cohort) return res.status(404).json({ error: 'Not found' });
   const responses = cohortHelpers.getResponses(req.params.id);
@@ -191,7 +194,14 @@ app.delete('/api/responses/:id', requireAuth, (req, res) => {
 });
 
 // ── AI routes ────────────────────────────────────────────────
+app.get('/api/ai/status', (req, res) => {
+  res.json({ available: isAIAvailable() });
+});
+
 app.post('/api/responses/:id/analyze', async (req, res) => {
+  if (!isAIAvailable()) {
+    return res.status(503).json({ error: 'AI analysis unavailable — ANTHROPIC_API_KEY not configured' });
+  }
   const response = responseHelpers.get(req.params.id);
   if (!response) return res.status(404).json({ error: 'Not found' });
   const cohort = cohortHelpers.get(response.cohort_id);
