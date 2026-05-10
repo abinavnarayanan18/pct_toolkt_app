@@ -7,8 +7,8 @@ const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const path = require('path');
-const { cohortHelpers, responseHelpers, adminHelpers } = require('./db');
-const { isAIAvailable, generateIndividualSummary, generateCohortSynthesis } = require('./ai');
+const { cohortHelpers, responseHelpers, adminHelpers } = require('./lib/db');
+const { isAIAvailable, generateIndividualSummary, generateCohortSynthesis } = require('./lib/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
