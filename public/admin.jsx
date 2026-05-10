@@ -655,14 +655,16 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
         )}
 
         {/* Top ranked shifts */}
-        {ranking.length > 0 && (
+        {ranking.length > 0 && priorityEl && (
           <div style={{ marginBottom: 16 }}>
-            <div className="label" style={{ marginBottom: 6 }}>Top 3 Ranked Shifts</div>
-            {ranking.slice(0, 3).map((elIdx, rank) => {
-              const el = PCT_ELEMENTS[elIdx];
+            <div className="label" style={{ marginBottom: 6 }}>Top {Math.min(3, ranking.length)} Ranked Shifts</div>
+            {ranking.slice(0, 3).map((shiftIdx, rank) => {
+              const shift = priorityEl.shifts[shiftIdx];
+              if (!shift) return null;
               return (
-                <p key={el.n} className="small" style={{ marginBottom: 2 }}>
-                  #{rank + 1} PCT {el.n} — {el.title}
+                <p key={shiftIdx} className="small" style={{ marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.7rem', color: 'var(--ink-4)', marginRight: 6 }}>#{rank + 1}</span>
+                  {shift.label}
                 </p>
               );
             })}

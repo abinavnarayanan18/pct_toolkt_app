@@ -423,16 +423,29 @@ function Step3Priority({ response, onBack, onNext }) {
 
 // ── Step 4: Rank Shifts (drag-and-drop) ──────────────────────
 function Step4Ranking({ response, onBack, onNext }) {
+  const priority = response?.priority;
+  const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
+  const shifts = priorityEl ? priorityEl.shifts : [];
+
   const [items, setItems] = React.useState(() => {
     try {
       const r = JSON.parse(response?.ranking || '[]');
-      if (r.length === 10) return r;
+      if (r.length === shifts.length) return r;
     } catch {}
-    return PCT_ELEMENTS.map((_, i) => i);
+    return shifts.map((_, i) => i);
   });
 
   const [dragIdx, setDragIdx] = React.useState(null);
   const [overIdx, setOverIdx] = React.useState(null);
+
+  if (!priorityEl) {
+    return (
+      <div className="page-center" style={{ paddingTop: 40 }}>
+        <div className="alert alert-error">No priority element selected. Please go back.</div>
+        <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={onBack}>← Back</button>
+      </div>
+    );
+  }
 
   function onDragStart(e, i) {
     setDragIdx(i);
@@ -477,19 +490,25 @@ function Step4Ranking({ response, onBack, onNext }) {
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 680 }}>
       <div style={{ marginBottom: 24 }}>
-        <h2>Rank the Transformation Shifts</h2>
+        <h2>Rank Your Priority Shifts</h2>
+        <div className="alert alert-success" style={{ marginTop: 12, marginBottom: 12 }}>
+          <strong>Priority: PCT {priorityEl.n} — {priorityEl.title}</strong>
+        </div>
         <p className="muted">
-          Drag to reorder — rank all 10 PCT shifts from most important (#1) to least important (#10)
-          for your organization's current transformation.
+          Drag to reorder — rank these {shifts.length} shifts from most important (#1) to least important (#{shifts.length})
+          for your current leadership context.
         </p>
       </div>
 
       <div className="rank-list">
-        {items.map((elIdx, rankPos) => {
-          const el = PCT_ELEMENTS[elIdx];
+        {items.map((shiftIdx, rankPos) => {
+          const shift = shifts[shiftIdx];
+          const parts = shift.label.split(' over ');
+          const over = parts[0];
+          const under = parts.slice(1).join(' over ');
           return (
             <div
-              key={el.n}
+              key={shiftIdx}
               className={`rank-item ${dragIdx === rankPos ? 'dragging' : ''} ${overIdx === rankPos && dragIdx !== rankPos ? 'drag-over' : ''}`}
               draggable
               onDragStart={e => onDragStart(e, rankPos)}
@@ -499,10 +518,14 @@ function Step4Ranking({ response, onBack, onNext }) {
             >
               <div className="rank-num">{rankPos + 1}</div>
               <span className="rank-drag-handle">⠿</span>
-              <div className="rank-title">{el.title}</div>
-              <span className={`badge q-${el.quadrant.toLowerCase()}`} style={{ flexShrink: 0 }}>
-                {el.quadrant}
-              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="rank-title">
+                  <strong>{over}</strong>
+                  <span className="muted" style={{ margin: '0 5px', fontWeight: 400 }}>over</span>
+                  <span>{under}</span>
+                </div>
+                <p className="small muted" style={{ marginTop: 2, lineHeight: 1.4 }}>{shift.description}</p>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
                 <button
                   className="btn-ghost btn btn-sm"
@@ -851,17 +874,24 @@ function Step6Summary({ response, cohort, responseId }) {
       )}
 
       {/* Ranked shifts */}
-      {ranking.length > 0 && (
+      {ranking.length > 0 && priorityEl && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><h3>Ranked Transformation Shifts</h3></div>
+          <div className="card-header"><h3>Ranked Shifts</h3></div>
           <div style={{ marginTop: 8 }}>
-            {ranking.map((elIdx, rank) => {
-              const el = PCT_ELEMENTS[elIdx];
+            {ranking.map((shiftIdx, rank) => {
+              const shift = priorityEl.shifts[shiftIdx];
+              if (!shift) return null;
+              const parts = shift.label.split(' over ');
+              const over = parts[0];
+              const under = parts.slice(1).join(' over ');
               return (
-                <div key={el.n} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 20 }}>#{rank + 1}</span>
-                  <span className="small"><strong>PCT {el.n}</strong> — {el.title}</span>
-                  <span className={`badge q-${el.quadrant.toLowerCase()}`} style={{ marginLeft: 'auto' }}>{el.quadrant}</span>
+                <div key={shiftIdx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 24 }}>#{rank + 1}</span>
+                  <span className="small">
+                    <strong>{over}</strong>
+                    <span className="muted" style={{ margin: '0 4px' }}>over</span>
+                    {under}
+                  </span>
                 </div>
               );
             })}
