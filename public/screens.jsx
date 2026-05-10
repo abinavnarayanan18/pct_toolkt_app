@@ -818,7 +818,7 @@ function Step6Summary({ response, cohort, responseId }) {
           </div>
           <div style={{ marginTop: 12 }}>
             <p style={{ fontWeight: 600, marginBottom: 4 }}>PCT {priorityEl.n} — {priorityEl.title}</p>
-            <p className="small muted" style={{ marginBottom: 16 }}>{priorityEl.shift}</p>
+            <p className="small muted" style={{ marginBottom: 16 }}>{priorityEl.heart}</p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {['moreOf', 'better', 'differently'].map(field => (
