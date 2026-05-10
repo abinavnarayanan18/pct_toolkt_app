@@ -22,6 +22,11 @@
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-display: 'Fraunces', Georgia, serif;
   --font-mono: 'JetBrains Mono', monospace;
+  --font-sketch: 'Caveat', 'Chalkduster', cursive;
+
+  --red: #c62828;
+  --red-soft: #fce8e6;
+  --red-mid: #e53935;
 
   --gap: 24px;
   --gap-sm: 12px;
@@ -43,6 +48,9 @@
   --accent-2: #1f6f5c;
   --accent-soft: #1a2e27;
   --accent-tint: #162420;
+  --red: #ef5350;
+  --red-soft: #3d1515;
+  --red-mid: #e57373;
 }
 
 [data-density="compact"] {
@@ -630,9 +638,9 @@ tr:hover td { background: var(--surface-2); }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: var(--surface);
-  border: 1.5px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   cursor: grab;
   transition: all var(--transition);
@@ -647,8 +655,8 @@ tr:hover td { background: var(--surface-2); }
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--red-soft);
+  color: var(--red);
   font-size: .75rem;
   font-weight: 700;
   display: flex;
@@ -722,12 +730,13 @@ tr:hover td { background: var(--surface-2); }
 
 .activator-header {
   padding: 10px 14px;
-  background: var(--accent-soft);
-  border-bottom: 1px solid var(--line);
-  font-weight: 600;
-  font-size: .8125rem;
-  color: var(--accent-2);
-  letter-spacing: .03em;
+  background: var(--red-soft);
+  border-bottom: 1px solid rgba(198,40,40,.12);
+  font-family: var(--font-sketch);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--red);
+  letter-spacing: .01em;
 }
 
 .activator-body { padding: 14px; display: flex; flex-direction: column; gap: var(--gap-sm); }
@@ -1008,8 +1017,9 @@ tr:hover td { background: var(--surface-2); }
 .pulse-element-num {
   font-size: .75rem;
   font-weight: 700;
-  color: var(--accent);
-  letter-spacing: .05em;
+  color: var(--red);
+  letter-spacing: .08em;
+  text-transform: uppercase;
   margin-bottom: 4px;
 }
 
@@ -1243,6 +1253,56 @@ tr:hover td { background: var(--surface-2); }
 .mb-sm { margin-bottom: var(--gap-sm); }
 .w-full { width: 100%; }
 .text-center { text-align: center; }
+
+/* ── Sketch / workshop feel ──────────────────────────────────── */
+
+/* Participant steps get handwritten headings */
+.app-shell h2 {
+  font-family: var(--font-sketch);
+  font-weight: 700;
+  font-size: 1.875rem;
+  letter-spacing: -.01em;
+}
+
+/* Key workshop marker labels (PULSE, SHIFTS, MBD) */
+.sketch-label {
+  font-family: var(--font-sketch);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--red);
+  letter-spacing: .02em;
+}
+
+/* "over" connector in shift labels */
+.shift-over {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--ink-4);
+  margin: 0 5px;
+  font-size: .875em;
+}
+
+/* Pulse card gets a red left-accent when answered */
+.pulse-card.answered {
+  border-color: var(--accent);
+  border-left: 3px solid var(--red);
+}
+
+/* Priority selected card gets red highlight */
+.priority-card.selected {
+  border-color: var(--red-mid);
+  background: var(--red-soft);
+}
+
+.priority-card-num { color: var(--red); }
+
+.priority-card:hover { border-color: var(--red-mid); background: var(--red-soft); }
+
+/* Quadrant badges — more saturated */
+.q-aspiration    { background: #bbdefb; color: #0d47a1; font-weight: 700; }
+.q-alignment     { background: #e1bee7; color: #4a148c; font-weight: 700; }
+.q-autonomy      { background: #ffe0b2; color: #bf360c; font-weight: 700; }
+.q-accountability { background: #c8e6c9; color: #1b5e20; font-weight: 700; }
 
 /* ── Print ───────────────────────────────────────────────────── */
 @media print {
