@@ -6,10 +6,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "vercel-build": "echo 'No build step required'"
+    "next:dev": "next dev",
+    "next:build": "next build",
+    "next:start": "next start",
+    "vercel-build": "next build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
+    "@vercel/postgres": "^0.10.0",
     "bcrypt": "^5.1.1",
     "better-sqlite3": "^9.4.3",
     "compression": "^1.8.1",
@@ -19,6 +23,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
+    "next": "^15.0.0",
     "uuid": "^9.0.1"
   }
 }
