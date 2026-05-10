@@ -202,28 +202,10 @@ function HomePage({ navigate }) {
         </div>
       </div>
 
-      {/* PCT Elements overview */}
+      {/* PCT Framework visual + element overview */}
       <div style={{ marginTop: 48, maxWidth: 700, margin: '48px auto 0' }}>
-        <h3 style={{ textAlign: 'center', marginBottom: 24 }}>The 10 PCT Elements</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-          {PCT_ELEMENTS.map(el => (
-            <div key={el.n} style={{
-              display: 'flex', gap: 10, padding: '10px 12px',
-              background: 'var(--surface)', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--line)'
-            }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--accent)', fontWeight: 700, minWidth: 32 }}>
-                PCT {el.n}
-              </span>
-              <div>
-                <p style={{ fontSize: '.875rem', fontWeight: 600, lineHeight: 1.3 }}>{el.title}</p>
-                <span className={`badge q-${el.quadrant.toLowerCase()}`} style={{ fontSize: '.625rem', marginTop: 3 }}>
-                  {el.quadrant}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <h3 style={{ textAlign: 'center', marginBottom: 20 }}>The PCT Framework</h3>
+        <PCTFrameworkPanel />
       </div>
     </div>
   );

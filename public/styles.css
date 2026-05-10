@@ -1304,6 +1304,79 @@ tr:hover td { background: var(--surface-2); }
 .q-autonomy      { background: #ffe0b2; color: #bf360c; font-weight: 700; }
 .q-accountability { background: #c8e6c9; color: #1b5e20; font-weight: 700; }
 
+/* ── PDF Visual component ────────────────────────────────────── */
+.pdf-visual-wrap { width: 100%; }
+
+.pdf-visual-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 120px;
+  background: var(--surface-2);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+}
+
+.pdf-placeholder-icon { font-size: 2rem; opacity: .4; }
+.pdf-placeholder-label {
+  font-family: var(--font-sketch);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.pdf-placeholder-desc { font-size: .8125rem; color: var(--ink-4); }
+.pdf-placeholder-hint { font-size: .75rem; color: var(--ink-4); margin-top: 6px; }
+.pdf-placeholder-hint code {
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  background: var(--line);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pdf-visual-caption {
+  font-size: .75rem;
+  color: var(--ink-4);
+  text-align: center;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* ── Concept card (pull-quote from PDF) ──────────────────────── */
+.concept-card {
+  border-left: 3px solid var(--red);
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.concept-quote {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.concept-source {
+  font-size: .75rem;
+  color: var(--ink-4);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* ── Framework panel ─────────────────────────────────────────── */
+.framework-panel { margin-top: 8px; }
+.framework-panel-compact { margin-top: 4px; }
+
 /* ── Print ───────────────────────────────────────────────────── */
 @media print {
   .topnav, .stepper, .tweaks-btn, .tweaks-panel,

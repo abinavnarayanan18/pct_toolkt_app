@@ -299,7 +299,7 @@ function Step2Pulse({ response, onBack, onNext, autosave }) {
 
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 720 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <h2>PCT Pulse Check</h2>
           <p className="muted">Rate how strongly you agree with each statement about your organization's leaders.</p>
@@ -308,6 +308,8 @@ function Step2Pulse({ response, onBack, onNext, autosave }) {
           {answeredCount}/10 answered
         </div>
       </div>
+
+      <PDFVisual concept="pulse-intro" style={{ marginBottom: 16 }} />
 
       {PCT_ELEMENTS.map((el, i) => (
         <PulseCard
@@ -616,6 +618,8 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
           Your top-ranked shift requires a completion commitment before you can continue.
         </p>
       </div>
+
+      <MBDIntroPanel />
 
       {ranking.map((shiftIdx, rankPos) => {
         const shift = priorityEl.shifts[shiftIdx];
