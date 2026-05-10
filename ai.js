@@ -11,16 +11,16 @@ function getClient() {
 }
 
 const PCT_ELEMENTS = [
-  { n:1, title:"Communicate a Compelling Change Narrative", quadrant:"ASPIRATION" },
-  { n:2, title:"Act to Think Differently", quadrant:"ASPIRATION" },
-  { n:3, title:"Embrace Situational Humility", quadrant:"ALIGNMENT" },
-  { n:4, title:"Focus Attention on What Matters", quadrant:"ALIGNMENT" },
-  { n:5, title:"Motivate Discretionary Effort", quadrant:"AUTONOMY" },
-  { n:6, title:"Give Others Agency", quadrant:"AUTONOMY" },
-  { n:7, title:"Decentralize Decision Making", quadrant:"ACCOUNTABILITY" },
-  { n:8, title:"Catalyze the Network", quadrant:"ACCOUNTABILITY" },
-  { n:9, title:"Lead the System", quadrant:"ACCOUNTABILITY" },
-  { n:10, title:"Nudge the Culture", quadrant:"ALIGNMENT" }
+  { n:1,  title:"Communicate a Compelling Change Narrative", quadrant:"ASPIRATION",    shifts:["Narrative over Data","Aspiration over Anxiety","Resonance over Reasoning","Consistency over Spontaneity"] },
+  { n:2,  title:"Act to Think Differently",                  quadrant:"ASPIRATION",    shifts:["Action over Analysis","Modeling over Mandating","Experimentation over Execution","Vulnerability over Authority"] },
+  { n:3,  title:"Embrace Situational Humility",              quadrant:"ALIGNMENT",     shifts:["Questions over Answers","Learning over Knowing","Curiosity over Certainty","Invitation over Direction"] },
+  { n:4,  title:"Focus Attention on What Matters",           quadrant:"ALIGNMENT",     shifts:["Vital Few over Trivial Many","Depth over Breadth","No over Yes","Clarity over Comprehensiveness"] },
+  { n:5,  title:"Motivate Discretionary Effort",             quadrant:"AUTONOMY",      shifts:["Intrinsic over Extrinsic","Meaning over Compliance","Autonomy over Direction","Recognition over Reward"] },
+  { n:6,  title:"Give Others Agency",                        quadrant:"AUTONOMY",      shifts:["Trust over Control","Permission over Approval","Accountability over Oversight","Ownership over Assignment"] },
+  { n:7,  title:"Decentralize Decision Making",              quadrant:"ACCOUNTABILITY",shifts:["Distributed over Centralized","Context over Commands","Guidance over Gatekeeping","Speed over Perfection"] },
+  { n:8,  title:"Catalyze the Network",                      quadrant:"ACCOUNTABILITY",shifts:["Network over Hierarchy","Collaboration over Silos","Emergence over Assignment","Broker over Director"] },
+  { n:9,  title:"Lead the System",                           quadrant:"ACCOUNTABILITY",shifts:["Whole over Parts","Interdependence over Independence","Collective over Individual","Adaptive over Predictive"] },
+  { n:10, title:"Nudge the Culture",                         quadrant:"ALIGNMENT",     shifts:["Norms over Rules","Behaviors over Beliefs","Informal over Formal","Continuous over Episodic"] }
 ];
 
 function quadrantAvg(scores, quadrant) {
@@ -46,18 +46,22 @@ function buildIndividualPrompt(response, cohortName) {
     `PCT ${el.n} — ${el.title}: ${scores[i] ?? 'N/A'}/7`
   ).join('\n');
 
-  const rankedBlock = ranking.map((idx, rank) =>
-    `${rank + 1}. PCT ${PCT_ELEMENTS[idx].n} — ${PCT_ELEMENTS[idx].title}`
-  ).join('\n');
-
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
-  const mbd = activators[priority] || {};
 
-  const activatorBlock = priorityEl ? `
-MBD ACTIVATORS for priority element:
-  MORE OF:       ${(mbd.moreOf || []).join(', ') || 'N/A'}
-  BETTER:        ${(mbd.better || []).join(', ') || 'N/A'}
-  DIFFERENTLY:   ${(mbd.differently || []).join(', ') || 'N/A'}
+  const rankedBlock = priorityEl ? ranking.map((shiftIdx, rank) => {
+    const shiftLabel = (priorityEl.shifts || [])[shiftIdx];
+    return shiftLabel ? `${rank + 1}. ${shiftLabel}` : null;
+  }).filter(Boolean).join('\n') : 'N/A';
+
+  const topShiftIdx = ranking.length > 0 ? ranking[0] : null;
+  const mbd = (topShiftIdx !== null && topShiftIdx !== undefined) ? (activators[topShiftIdx] || {}) : {};
+  const topShiftLabel = priorityEl && topShiftIdx !== null ? (priorityEl.shifts || [])[topShiftIdx] : null;
+
+  const activatorBlock = topShiftLabel ? `
+MBD ACTIVATORS for top-ranked shift: ${topShiftLabel}
+  MORE OF:       ${(mbd.moreOf || []).filter(Boolean).join(', ') || 'N/A'}
+  BETTER:        ${(mbd.better || []).filter(Boolean).join(', ') || 'N/A'}
+  DIFFERENTLY:   ${(mbd.differently || []).filter(Boolean).join(', ') || 'N/A'}
   COMPLETE WHEN: ${mbd.completeWhen || 'N/A'}
   OWNER: ${mbd.owner || 'N/A'}  DUE: ${mbd.due || 'N/A'}
 ` : '';

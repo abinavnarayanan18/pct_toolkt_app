@@ -592,7 +592,8 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
 
   const priority = response.priority;
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
-  const mbd = priority !== null && priority !== undefined ? (activators[priority] || {}) : {};
+  const topShiftIdx = ranking.length > 0 ? ranking[0] : null;
+  const mbd = topShiftIdx !== null && topShiftIdx !== undefined ? (activators[topShiftIdx] || {}) : {};
 
   async function generateAI() {
     setAiLoading(true);

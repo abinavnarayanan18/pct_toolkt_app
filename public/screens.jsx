@@ -562,43 +562,47 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
   const priority = response?.priority;
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
 
+  const ranking = React.useMemo(() => {
+    try {
+      const r = JSON.parse(response?.ranking || '[]');
+      return r.length > 0 ? r : (priorityEl ? priorityEl.shifts.map((_, i) => i) : []);
+    } catch { return []; }
+  }, [response, priorityEl]);
+
   const [activators, setActivators] = React.useState(() => {
     try { return JSON.parse(response?.activators || '{}'); } catch { return {}; }
   });
 
-  const mbd = activators[priority] || {
-    moreOf: ['', '', ''],
-    better: ['', '', ''],
-    differently: ['', '', ''],
-    completeWhen: '',
-    owner: '',
-    due: ''
-  };
+  function emptyMBD() {
+    return { moreOf: ['', '', ''], better: ['', '', ''], differently: ['', '', ''], completeWhen: '', owner: '', due: '' };
+  }
 
-  function updateMBD(field, value, idx) {
+  function updateMBD(shiftIdx, field, value, idx) {
     const next = { ...activators };
-    const cur = next[priority] ? { ...next[priority] } : { moreOf: ['','',''], better: ['','',''], differently: ['','',''], completeWhen: '', owner: '', due: '' };
+    const cur = next[shiftIdx] ? { ...next[shiftIdx] } : emptyMBD();
     if (idx !== undefined) {
-      cur[field] = [...(cur[field] || ['','',''])];
+      cur[field] = [...(cur[field] || ['', '', ''])];
       cur[field][idx] = value;
     } else {
       cur[field] = value;
     }
-    next[priority] = cur;
+    next[shiftIdx] = cur;
     setActivators(next);
     autosave(next);
   }
 
-  if (!priorityEl) {
+  if (!priorityEl || ranking.length === 0) {
     return (
       <div className="page-center" style={{ paddingTop: 40 }}>
-        <div className="alert alert-error">No priority element selected. Please go back.</div>
+        <div className="alert alert-error">Priority element or ranking not found. Please go back.</div>
         <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={onBack}>← Back</button>
       </div>
     );
   }
 
-  const isComplete = mbd.completeWhen && mbd.completeWhen.trim();
+  const topShiftIdx = ranking[0];
+  const topMBD = activators[topShiftIdx] || {};
+  const isComplete = topMBD.completeWhen && topMBD.completeWhen.trim();
 
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 720 }}>
@@ -606,76 +610,28 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
         <h2>MBD Activators</h2>
         <div className="alert alert-success" style={{ marginTop: 12 }}>
           <strong>Priority: PCT {priorityEl.n} — {priorityEl.title}</strong>
-          <br /><em style={{ fontSize: '.875rem', display: 'block', marginTop: 4 }}>{priorityEl.heart}</em>
         </div>
         <p className="muted" style={{ marginTop: 12 }}>
-          Define specific actions you will do MORE OF, get BETTER at, or do DIFFERENTLY to shift this element.
-          Then commit to a completion target.
+          For each ranked shift, define what you will do MORE OF, get BETTER at, or do DIFFERENTLY.
+          Your top-ranked shift requires a completion commitment before you can continue.
         </p>
       </div>
 
-      <ActivatorGroup
-        title="MORE OF"
-        subtitle="What will you start doing more of?"
-        field="moreOf"
-        values={mbd.moreOf || ['', '', '']}
-        onChange={(val, idx) => updateMBD('moreOf', val, idx)}
-      />
-      <ActivatorGroup
-        title="BETTER"
-        subtitle="What will you do more skillfully?"
-        field="better"
-        values={mbd.better || ['', '', '']}
-        onChange={(val, idx) => updateMBD('better', val, idx)}
-      />
-      <ActivatorGroup
-        title="DIFFERENTLY"
-        subtitle="What will you change or stop doing?"
-        field="differently"
-        values={mbd.differently || ['', '', '']}
-        onChange={(val, idx) => updateMBD('differently', val, idx)}
-      />
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <div className="card-header">
-          <div>
-            <h3>Completion Commitment</h3>
-            <p className="small muted">Define what "done" looks like for this shift</p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-          <div className="form-group">
-            <label className="form-label">I will know this shift is complete when… *</label>
-            <textarea
-              className="form-textarea"
-              value={mbd.completeWhen || ''}
-              onChange={e => updateMBD('completeWhen', e.target.value)}
-              placeholder="Describe a specific, observable behavior or outcome that signals success"
-              rows={3}
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="form-group">
-              <label className="form-label">Accountability Partner</label>
-              <input
-                className="form-input"
-                value={mbd.owner || ''}
-                onChange={e => updateMBD('owner', e.target.value)}
-                placeholder="Who will hold you accountable?"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Target Date</label>
-              <input
-                className="form-input"
-                type="date"
-                value={mbd.due || ''}
-                onChange={e => updateMBD('due', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      {ranking.map((shiftIdx, rankPos) => {
+        const shift = priorityEl.shifts[shiftIdx];
+        if (!shift) return null;
+        const mbd = activators[shiftIdx] || emptyMBD();
+        return (
+          <ShiftActivatorCard
+            key={shiftIdx}
+            rank={rankPos + 1}
+            shift={shift}
+            mbd={mbd}
+            isTopRanked={rankPos === 0}
+            onChange={(field, value, idx) => updateMBD(shiftIdx, field, value, idx)}
+          />
+        );
+      })}
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button className="btn btn-secondary" onClick={onBack}>← Back</button>
@@ -684,9 +640,99 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
           onClick={() => onNext(activators)}
           disabled={!isComplete}
         >
-          View My Summary →
+          {isComplete ? 'View My Summary →' : 'Complete the top shift's commitment first'}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ShiftActivatorCard({ rank, shift, mbd, isTopRanked, onChange }) {
+  const [expanded, setExpanded] = React.useState(isTopRanked);
+  const parts = shift.label.split(' over ');
+  const over = parts[0];
+  const under = parts.slice(1).join(' over ');
+
+  return (
+    <div className="card" style={{ marginBottom: 14, borderLeft: isTopRanked ? '3px solid var(--accent)' : undefined }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 24, flexShrink: 0 }}>#{rank}</span>
+        <div style={{ flex: 1 }}>
+          <span className="small" style={{ fontWeight: 600 }}>
+            <strong>{over}</strong>
+            <span className="muted" style={{ fontWeight: 400, margin: '0 5px' }}>over</span>
+            {under}
+          </span>
+          {isTopRanked && (
+            <span className="badge badge-blue" style={{ marginLeft: 8, fontSize: '.6rem', verticalAlign: 'middle' }}>Primary Focus</span>
+          )}
+        </div>
+        <span className={`chevron ${expanded ? 'open' : ''}`} style={{ flexShrink: 0 }}>▶</span>
+      </div>
+
+      {expanded && (
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+          {shift.description && (
+            <p className="small muted" style={{ marginBottom: 14 }}>{shift.description}</p>
+          )}
+          <ActivatorGroup
+            title="MORE OF"
+            subtitle="What will you start doing more of?"
+            values={mbd.moreOf || ['', '', '']}
+            onChange={(val, idx) => onChange('moreOf', val, idx)}
+          />
+          <ActivatorGroup
+            title="BETTER"
+            subtitle="What will you do more skillfully?"
+            values={mbd.better || ['', '', '']}
+            onChange={(val, idx) => onChange('better', val, idx)}
+          />
+          <ActivatorGroup
+            title="DIFFERENTLY"
+            subtitle="What will you change or stop doing?"
+            values={mbd.differently || ['', '', '']}
+            onChange={(val, idx) => onChange('differently', val, idx)}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            <div className="form-group">
+              <label className="form-label">
+                I will know this shift is complete when…
+                {isTopRanked && <span style={{ color: 'var(--accent)', marginLeft: 4 }}>*</span>}
+              </label>
+              <textarea
+                className="form-textarea"
+                value={mbd.completeWhen || ''}
+                onChange={e => onChange('completeWhen', e.target.value)}
+                placeholder="Describe a specific, observable behavior or outcome that signals success"
+                rows={3}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Accountability Partner</label>
+                <input
+                  className="form-input"
+                  value={mbd.owner || ''}
+                  onChange={e => onChange('owner', e.target.value)}
+                  placeholder="Who will hold you accountable?"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Target Date</label>
+                <input
+                  className="form-input"
+                  type="date"
+                  value={mbd.due || ''}
+                  onChange={e => onChange('due', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -738,7 +784,6 @@ function Step6Summary({ response, cohort, responseId }) {
 
   const priority = response?.priority;
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
-  const mbd = priority !== null && priority !== undefined ? (activators[priority] || {}) : {};
 
   React.useEffect(() => {
     // Auto-submit if not yet submitted
@@ -832,43 +877,71 @@ function Step6Summary({ response, cohort, responseId }) {
         </div>
       </div>
 
-      {/* Priority + MBD */}
+      {/* Priority + per-shift MBD */}
       {priorityEl && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header">
-            <h3>Priority Element</h3>
+            <h3>Priority Element & Activation Plan</h3>
             <span className={`badge q-${priorityEl.quadrant.toLowerCase()}`}>{priorityEl.quadrant}</span>
           </div>
           <div style={{ marginTop: 12 }}>
             <p style={{ fontWeight: 600, marginBottom: 4 }}>PCT {priorityEl.n} — {priorityEl.title}</p>
             <p className="small muted" style={{ marginBottom: 16 }}>{priorityEl.heart}</p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {['moreOf', 'better', 'differently'].map(field => (
-                <div key={field} style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: 12 }}>
-                  <div className="label" style={{ marginBottom: 6 }}>
-                    {field === 'moreOf' ? 'More Of' : field === 'better' ? 'Better' : 'Differently'}
+            {ranking.map((shiftIdx, rankPos) => {
+              const shift = priorityEl.shifts[shiftIdx];
+              if (!shift) return null;
+              const shiftMBD = activators[shiftIdx] || {};
+              const parts = shift.label.split(' over ');
+              const over = parts[0];
+              const under = parts.slice(1).join(' over ');
+              const isTop = rankPos === 0;
+              return (
+                <div key={shiftIdx} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--line)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.7rem', color: 'var(--ink-4)', minWidth: 22 }}>#{rankPos + 1}</span>
+                    <span className="small" style={{ fontWeight: 600 }}>
+                      <strong>{over}</strong>
+                      <span className="muted" style={{ fontWeight: 400, margin: '0 4px' }}>over</span>
+                      {under}
+                    </span>
+                    {isTop && <span className="badge badge-blue" style={{ fontSize: '.6rem' }}>Primary Focus</span>}
                   </div>
-                  {(mbd[field] || []).filter(Boolean).map((v, i) => (
-                    <p key={i} className="small" style={{ marginBottom: 2 }}>• {v}</p>
-                  ))}
-                </div>
-              ))}
-            </div>
 
-            {mbd.completeWhen && (
-              <div style={{ marginTop: 12, padding: 12, background: 'var(--accent-tint)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent)' }}>
-                <div className="label" style={{ marginBottom: 4 }}>Complete When</div>
-                <p className="small">{mbd.completeWhen}</p>
-                {(mbd.owner || mbd.due) && (
-                  <p className="small muted" style={{ marginTop: 6 }}>
-                    {mbd.owner && <span>Owner: {mbd.owner}</span>}
-                    {mbd.owner && mbd.due && ' · '}
-                    {mbd.due && <span>Due: {mbd.due}</span>}
-                  </p>
-                )}
-              </div>
-            )}
+                  {isTop && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+                      {['moreOf', 'better', 'differently'].map(field => (
+                        <div key={field} style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: 10 }}>
+                          <div className="label" style={{ marginBottom: 5, fontSize: '.65rem' }}>
+                            {field === 'moreOf' ? 'More Of' : field === 'better' ? 'Better' : 'Differently'}
+                          </div>
+                          {(shiftMBD[field] || []).filter(Boolean).map((v, i) => (
+                            <p key={i} className="small" style={{ marginBottom: 2 }}>• {v}</p>
+                          ))}
+                          {!(shiftMBD[field] || []).filter(Boolean).length && (
+                            <p className="small muted">—</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {shiftMBD.completeWhen && (
+                    <div style={{ padding: 10, background: 'var(--accent-tint)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent)' }}>
+                      <div className="label" style={{ marginBottom: 4, fontSize: '.65rem' }}>Complete When</div>
+                      <p className="small">{shiftMBD.completeWhen}</p>
+                      {(shiftMBD.owner || shiftMBD.due) && (
+                        <p className="small muted" style={{ marginTop: 4 }}>
+                          {shiftMBD.owner && <span>Owner: {shiftMBD.owner}</span>}
+                          {shiftMBD.owner && shiftMBD.due && ' · '}
+                          {shiftMBD.due && <span>Due: {shiftMBD.due}</span>}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
