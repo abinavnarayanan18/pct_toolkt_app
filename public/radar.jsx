@@ -3,12 +3,11 @@ function RadarChart({ scores, cohortScores, showCohort }) {
   const SIZE = 500;
   const CX = SIZE / 2;
   const CY = SIZE / 2;
-  const RADIUS = 160;
+  const RADIUS = 150;
   const RINGS = 7;
   const AXES = 10;
-  const LABEL_PAD = 100;
+  const LABEL_PAD = 80;
 
-  // Offset so PCT1 is at top (subtract 90deg)
   function polarToXY(index, value, total, radius) {
     const angle = (2 * Math.PI * index) / total - Math.PI / 2;
     const r = (value / RINGS) * radius;
@@ -28,41 +27,45 @@ function RadarChart({ scores, cohortScores, showCohort }) {
 
   function labelXY(index) {
     const angle = (2 * Math.PI * index) / AXES - Math.PI / 2;
+    const r = RADIUS + LABEL_PAD;
     return {
-      x: CX + (RADIUS + LABEL_PAD) * Math.cos(angle),
-      y: CY + (RADIUS + LABEL_PAD) * Math.sin(angle),
-      angle: (angle * 180 / Math.PI)
+      x: CX + r * Math.cos(angle),
+      y: CY + r * Math.sin(angle),
     };
   }
 
-  // Quadrant labels at midpoints between axes
-  function quadrantLabelPos(axisA, axisB) {
-    const midAngle = ((2 * Math.PI * axisA) / AXES + (2 * Math.PI * axisB) / AXES) / 2 - Math.PI / 2;
-    const r = RADIUS + 145;
-    return { x: CX + r * Math.cos(midAngle), y: CY + r * Math.sin(midAngle) };
-  }
-
-  // ASPIRATION: PCT1(0), PCT2(1) → midpoint between 0 and 1
-  // ALIGNMENT: PCT3(2), PCT4(3), PCT10(9) → midpoint...
+  // Quadrant labels placed further out and at midpoint angles
+  // ASPIRATION: PCT1(0), PCT2(1)
+  // ALIGNMENT: PCT3(2), PCT4(3), PCT10(9)
   // AUTONOMY: PCT5(4), PCT6(5)
   // ACCOUNTABILITY: PCT7(6), PCT8(7), PCT9(8)
-  const quadrantLabels = [
-    { label: 'ASPIRATION', pos: quadrantLabelPos(0, 1), color: '#1565c0' },
-    { label: 'AUTONOMY', pos: quadrantLabelPos(4, 5), color: '#e65100' },
-    { label: 'ACCOUNTABILITY', pos: quadrantLabelPos(7, 8), color: '#1f6f5c' },
+  function quadrantAngle(indices) {
+    const angles = indices.map(i => (2 * Math.PI * i) / AXES - Math.PI / 2);
+    // average angle
+    let sum = 0;
+    angles.forEach(a => sum += a);
+    return sum / angles.length;
+  }
+
+  const QLABEL_R = RADIUS + 165;
+
+  const quadrantDefs = [
+    { label: 'ASPIRATION',     indices: [0, 1],    color: '#0d47a1' },
+    { label: 'ALIGNMENT',      indices: [2, 3, 9], color: '#4a148c' },
+    { label: 'AUTONOMY',       indices: [4, 5],    color: '#bf360c' },
+    { label: 'ACCOUNTABILITY', indices: [6, 7, 8], color: '#1b5e20' },
   ];
-  // ALIGNMENT spans PCT3,4,10 — label between PCT3(2) and PCT4(3)
-  const alignMidAngle = (
-    ((2 * Math.PI * 2) / AXES) +
-    ((2 * Math.PI * 3) / AXES)
-  ) / 2 - Math.PI / 2;
-  quadrantLabels.push({
-    label: 'ALIGNMENT',
-    pos: { x: CX + (RADIUS + 130) * Math.cos(alignMidAngle), y: CY + (RADIUS + 130) * Math.sin(alignMidAngle) },
-    color: '#6a1b9a'
+
+  const quadrantLabels = quadrantDefs.map(q => {
+    const angle = quadrantAngle(q.indices);
+    return {
+      label: q.label,
+      color: q.color,
+      x: CX + QLABEL_R * Math.cos(angle),
+      y: CY + QLABEL_R * Math.sin(angle),
+    };
   });
 
-  // Build filled polygon from scores
   function buildPolygon(vals) {
     if (!vals || vals.length < AXES) return '';
     return vals.map((v, i) => {
@@ -71,13 +74,12 @@ function RadarChart({ scores, cohortScores, showCohort }) {
     }).join(' ');
   }
 
-  // Word-wrap text at ~16 chars
   function wrapLabel(title) {
     const words = title.split(' ');
     const lines = [];
     let line = '';
     for (const w of words) {
-      if ((line + ' ' + w).trim().length > 16 && line) {
+      if ((line + ' ' + w).trim().length > 14 && line) {
         lines.push(line.trim());
         line = w;
       } else {
@@ -90,13 +92,15 @@ function RadarChart({ scores, cohortScores, showCohort }) {
 
   const [tooltip, setTooltip] = React.useState(null);
 
-  const viewBox = `0 0 ${SIZE} ${SIZE}`;
+  // SVG needs extra space for outer labels — use a larger viewBox
+  const VB_PAD = 120;
+  const viewBox = `${-VB_PAD} ${-VB_PAD} ${SIZE + VB_PAD * 2} ${SIZE + VB_PAD * 2}`;
 
   return (
-    <div className="radar-wrap" style={{ position: 'relative' }}>
+    <div className="radar-wrap">
       <svg
         viewBox={viewBox}
-        style={{ width: '100%', maxWidth: SIZE, height: 'auto', overflow: 'visible' }}
+        style={{ width: '100%', maxWidth: 600, height: 'auto', overflow: 'visible' }}
       >
         {/* Concentric rings */}
         {Array.from({ length: RINGS }, (_, r) => (
@@ -110,13 +114,13 @@ function RadarChart({ scores, cohortScores, showCohort }) {
           />
         ))}
 
-        {/* Ring value labels (right side) */}
+        {/* Ring value labels */}
         {Array.from({ length: RINGS }, (_, r) => (
           <text
             key={`rl-${r}`}
             x={CX + 4}
             y={CY - ((r + 1) / RINGS) * RADIUS + 4}
-            fontSize="8"
+            fontSize="9"
             fill="var(--ink-4)"
             fontFamily="var(--font-mono)"
           >
@@ -138,19 +142,18 @@ function RadarChart({ scores, cohortScores, showCohort }) {
           );
         })}
 
-        {/* Quadrant label arcs */}
-        {quadrantLabels.map(({ label, pos, color }) => (
+        {/* Quadrant labels — outside the ring */}
+        {quadrantLabels.map(({ label, x, y, color }) => (
           <text
             key={label}
-            x={pos.x} y={pos.y}
+            x={x} y={y}
             textAnchor="middle"
             dominantBaseline="middle"
-            fontSize="8"
+            fontSize="8.5"
             fontWeight="800"
-            letterSpacing="0.06em"
+            letterSpacing="0.07em"
             fill={color}
             fontFamily="var(--font-sans)"
-            style={{ textTransform: 'uppercase' }}
           >
             {label}
           </text>
@@ -179,7 +182,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
           />
         )}
 
-        {/* Dots on vertices + tooltips */}
+        {/* Dots + tooltips */}
         {scores && PCT_ELEMENTS.map((el, i) => {
           const val = scores[i];
           if (!val) return null;
@@ -216,7 +219,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
           );
         })}
 
-        {/* Axis labels */}
+        {/* Axis labels — PCT number + wrapped title */}
         {PCT_ELEMENTS.map((el, i) => {
           const { x, y } = labelXY(i);
           const lines = [`PCT ${el.n}`, ...wrapLabel(el.title)];
@@ -230,8 +233,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
               y={y - totalH / 2}
               textAnchor="middle"
               fontFamily="var(--font-sans)"
-              fontSize="9.5"
-              fill="var(--ink-2)"
+              fontSize="9"
             >
               {lines.map((ln, li) => (
                 <tspan
@@ -252,9 +254,9 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         {tooltip && (
           <g>
             <rect
-              x={tooltip.x - 36}
-              y={tooltip.y - 30}
-              width={72}
+              x={tooltip.x - 40}
+              y={tooltip.y - 32}
+              width={80}
               height={22}
               rx={4}
               fill="var(--ink)"
@@ -262,7 +264,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
             />
             <text
               x={tooltip.x}
-              y={tooltip.y - 15}
+              y={tooltip.y - 17}
               textAnchor="middle"
               fontSize="10"
               fill="#fff"
@@ -274,15 +276,31 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         )}
       </svg>
 
-      {/* Legend */}
+      {/* Legend — outside SVG, below the chart */}
       {showCohort && cohortScores && (
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8, fontSize: '.75rem' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 16, height: 3, background: 'var(--accent)', display: 'inline-block', borderRadius: 2 }} />
+        <div style={{
+          display: 'flex',
+          gap: 20,
+          justifyContent: 'center',
+          marginTop: 12,
+          fontSize: '.8125rem',
+          color: 'var(--ink-3)'
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 20, height: 3,
+              background: 'var(--accent)',
+              display: 'inline-block',
+              borderRadius: 2
+            }} />
             You
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 16, height: 3, background: 'var(--ink-4)', display: 'inline-block', borderRadius: 2, borderTop: '1.5px dashed var(--ink-4)' }} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 20, height: 0,
+              display: 'inline-block',
+              borderTop: '2px dashed var(--ink-4)'
+            }} />
             Cohort Avg
           </span>
         </div>
