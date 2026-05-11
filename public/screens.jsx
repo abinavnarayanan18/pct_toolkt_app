@@ -812,12 +812,12 @@ function Step6Summary({ response, cohort, responseId }) {
   }, []);
 
   React.useEffect(() => {
-    // Auto-trigger AI analysis only when availability is confirmed and analysis not yet done
-    if (aiAvailable === true && !aiSummary && !aiLoading) {
+    // Only auto-trigger if this specific response doesn't already have an AI summary
+    // and AI is available — never trigger based on cohort release state
+    if (aiAvailable === true && !aiSummary && !aiLoading && submitted) {
       triggerAI();
     }
-  }, [aiAvailable]);
-
+  }, [aiAvailable, submitted]);
   async function triggerAI() {
     setAiLoading(true);
     setAiError(null);
@@ -854,14 +854,16 @@ function Step6Summary({ response, cohort, responseId }) {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header">
           <h3>PCT Pulse Radar</h3>
+          {avg && <span className="score-num" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Overall avg: {avg}/7</span>}
         </div>
-        <RadarChart
-          scores={scores}
-          cohortScores={radarData}
-          showCohort={!!radarData}
-        />
+        <div style={{ padding: '8px 0', minHeight: 480 }}>
+          <RadarChart
+            scores={scores}
+            cohortScores={radarData}
+            showCohort={!!radarData}
+          />
+        </div>
       </div>
-
       {/* Score breakdown */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header"><h3>Element Scores</h3></div>

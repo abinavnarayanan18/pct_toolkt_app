@@ -98,34 +98,95 @@ function ConceptCard({ quote, source, accent, children }) {
 // PCTFrameworkPanel: shows the PCT framework image + element list,
 // used on the home page and as an intro before Step 2.
 function PCTFrameworkPanel({ compact }) {
+  const quadrants = [
+    {
+      key: 'ASPIRATION',
+      label: 'Aspiration',
+      color: 'var(--q-aspiration)',
+      bg: 'var(--q-aspiration-bg)',
+      icon: '🎯',
+      elements: PCT_ELEMENTS.filter(e => e.quadrant === 'ASPIRATION')
+    },
+    {
+      key: 'ALIGNMENT',
+      label: 'Alignment',
+      color: 'var(--q-alignment)',
+      bg: 'var(--q-alignment-bg)',
+      icon: '🧭',
+      elements: PCT_ELEMENTS.filter(e => e.quadrant === 'ALIGNMENT')
+    },
+    {
+      key: 'AUTONOMY',
+      label: 'Autonomy',
+      color: 'var(--q-autonomy)',
+      bg: 'var(--q-autonomy-bg)',
+      icon: '⚡',
+      elements: PCT_ELEMENTS.filter(e => e.quadrant === 'AUTONOMY')
+    },
+    {
+      key: 'ACCOUNTABILITY',
+      label: 'Accountability',
+      color: 'var(--q-accountability)',
+      bg: 'var(--q-accountability-bg)',
+      icon: '🔗',
+      elements: PCT_ELEMENTS.filter(e => e.quadrant === 'ACCOUNTABILITY')
+    }
+  ];
+
   return (
-    <div className={compact ? 'framework-panel-compact' : 'framework-panel'}>
-      <PDFVisual
-        concept="framework"
-        style={{ marginBottom: 16 }}
-        caption="The PCT Leadership Framework — 10 elements across 4 quadrants"
-      />
-      {!compact && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 8 }}>
-          {['ASPIRATION', 'ALIGNMENT', 'AUTONOMY', 'ACCOUNTABILITY'].map(q => {
-            const els = PCT_ELEMENTS.filter(e => e.quadrant === q);
-            return (
-              <div key={q} className={`quadrant-summary q-${q.toLowerCase()}`} style={{ padding: 10, borderRadius: 'var(--radius-sm)' }}>
-                <div className="label" style={{ marginBottom: 6 }}>{q}</div>
-                {els.map(e => (
-                  <div key={e.n} className="small" style={{ marginBottom: 2 }}>
-                    <strong>PCT {e.n}</strong> {e.title}
-                  </div>
-                ))}
+    <div className="framework-panel">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 10,
+        marginTop: 8
+      }}>
+        {quadrants.map(q => (
+          <div key={q.key} style={{
+            background: q.bg,
+            borderRadius: 'var(--radius-lg)',
+            padding: '14px 16px',
+            border: `1.5px solid ${q.color}22`
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: 10
+            }}>
+              <span style={{ fontSize: '1rem' }}>{q.icon}</span>
+              <span style={{
+                fontSize: '.6875rem',
+                fontWeight: 700,
+                letterSpacing: '.07em',
+                textTransform: 'uppercase',
+                color: q.color
+              }}>{q.label}</span>
+            </div>
+            {q.elements.map(el => (
+              <div key={el.n} style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: 6,
+                marginBottom: 5,
+                fontSize: '.8125rem'
+              }}>
+                <span style={{
+                  fontWeight: 700,
+                  color: q.color,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '.6875rem',
+                  flexShrink: 0
+                }}>PCT {el.n}</span>
+                <span style={{ color: 'var(--ink-2)', lineHeight: 1.3 }}>{el.title}</span>
               </div>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-
 // MBDIntroPanel: brief visual explanation of MBD before Step 5
 function MBDIntroPanel() {
   return (
