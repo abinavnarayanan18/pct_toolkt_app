@@ -644,7 +644,7 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
           onClick={() => onNext(activators)}
           disabled={!isComplete}
         >
-          {isComplete ? 'View My Summary →' : 'Complete the top shift's commitment first'}
+          {isComplete ? 'View My Summary →' : "Complete the top shift's commitment first"}
         </button>
       </div>
     </div>
