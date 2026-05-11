@@ -854,7 +854,6 @@ function Step6Summary({ response, cohort, responseId }) {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header">
           <h3>PCT Pulse Radar</h3>
-          {avg && <span className="score-num">Overall avg: {avg}/7</span>}
         </div>
         <RadarChart
           scores={scores}

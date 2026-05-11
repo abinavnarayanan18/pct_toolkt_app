@@ -1,85 +1,15 @@
-// SVG Radar Chart — 10-axis, 7-ring, no library
+// Radar Chart using Chart.js — handles label layout automatically
 function RadarChart({ scores, cohortScores, showCohort }) {
-  const SIZE = 500;
-  const CX = SIZE / 2;
-  const CY = SIZE / 2;
-  const RADIUS = 150;
-  const RINGS = 7;
-  const AXES = 10;
-  const LABEL_PAD = 80;
+  const canvasRef = React.useRef(null);
+  const chartRef = React.useRef(null);
 
-  function polarToXY(index, value, total, radius) {
-    const angle = (2 * Math.PI * index) / total - Math.PI / 2;
-    const r = (value / RINGS) * radius;
-    return {
-      x: CX + r * Math.cos(angle),
-      y: CY + r * Math.sin(angle)
-    };
-  }
-
-  function axisEndXY(index) {
-    const angle = (2 * Math.PI * index) / AXES - Math.PI / 2;
-    return {
-      x: CX + RADIUS * Math.cos(angle),
-      y: CY + RADIUS * Math.sin(angle)
-    };
-  }
-
-  function labelXY(index) {
-    const angle = (2 * Math.PI * index) / AXES - Math.PI / 2;
-    const r = RADIUS + LABEL_PAD;
-    return {
-      x: CX + r * Math.cos(angle),
-      y: CY + r * Math.sin(angle),
-    };
-  }
-
-  // Quadrant labels placed further out and at midpoint angles
-  // ASPIRATION: PCT1(0), PCT2(1)
-  // ALIGNMENT: PCT3(2), PCT4(3), PCT10(9)
-  // AUTONOMY: PCT5(4), PCT6(5)
-  // ACCOUNTABILITY: PCT7(6), PCT8(7), PCT9(8)
-  function quadrantAngle(indices) {
-    const angles = indices.map(i => (2 * Math.PI * i) / AXES - Math.PI / 2);
-    // average angle
-    let sum = 0;
-    angles.forEach(a => sum += a);
-    return sum / angles.length;
-  }
-
-  const QLABEL_R = RADIUS + 165;
-
-  const quadrantDefs = [
-    { label: 'ASPIRATION',     indices: [0, 1],    color: '#0d47a1' },
-    { label: 'ALIGNMENT',      indices: [2, 3, 9], color: '#4a148c' },
-    { label: 'AUTONOMY',       indices: [4, 5],    color: '#bf360c' },
-    { label: 'ACCOUNTABILITY', indices: [6, 7, 8], color: '#1b5e20' },
-  ];
-
-  const quadrantLabels = quadrantDefs.map(q => {
-    const angle = quadrantAngle(q.indices);
-    return {
-      label: q.label,
-      color: q.color,
-      x: CX + QLABEL_R * Math.cos(angle),
-      y: CY + QLABEL_R * Math.sin(angle),
-    };
-  });
-
-  function buildPolygon(vals) {
-    if (!vals || vals.length < AXES) return '';
-    return vals.map((v, i) => {
-      const pt = polarToXY(i, v || 0, AXES, RADIUS);
-      return `${pt.x},${pt.y}`;
-    }).join(' ');
-  }
-
-  function wrapLabel(title) {
-    const words = title.split(' ');
+  const labels = PCT_ELEMENTS.map(el => {
+    // Wrap long titles across multiple lines for Chart.js
+    const words = el.title.split(' ');
     const lines = [];
     let line = '';
     for (const w of words) {
-      if ((line + ' ' + w).trim().length > 14 && line) {
+      if ((line + ' ' + w).trim().length > 16 && line) {
         lines.push(line.trim());
         line = w;
       } else {
@@ -87,224 +17,161 @@ function RadarChart({ scores, cohortScores, showCohort }) {
       }
     }
     if (line) lines.push(line.trim());
-    return lines;
-  }
+    return [`PCT ${el.n}`, ...lines];
+  });
 
-  const [tooltip, setTooltip] = React.useState(null);
+  React.useEffect(() => {
+    if (!canvasRef.current) return;
+    if (typeof Chart === 'undefined') return;
 
-  // SVG needs extra space for outer labels — use a larger viewBox
-  const VB_PAD = 120;
-  const viewBox = `${-VB_PAD} ${-VB_PAD} ${SIZE + VB_PAD * 2} ${SIZE + VB_PAD * 2}`;
+    // Destroy previous instance
+    if (chartRef.current) {
+      chartRef.current.destroy();
+      chartRef.current = null;
+    }
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    const tickColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)';
+    const labelColor = isDark ? '#c8cbc9' : '#3a3f3d';
+    const accentColor = '#1f6f5c';
+
+    const datasets = [
+      {
+        label: 'You',
+        data: scores && scores.length === 10 ? scores.map(s => s || 0) : Array(10).fill(0),
+        backgroundColor: 'rgba(31,111,92,0.15)',
+        borderColor: accentColor,
+        borderWidth: 2.5,
+        pointBackgroundColor: accentColor,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }
+    ];
+
+    if (showCohort && cohortScores && cohortScores.length === 10) {
+      datasets.push({
+        label: 'Cohort Avg',
+        data: cohortScores.map(s => s || 0),
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderColor: 'rgba(100,100,100,0.5)',
+        borderWidth: 1.5,
+        borderDash: [5, 3],
+        pointBackgroundColor: 'rgba(100,100,100,0.5)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      });
+    }
+
+    chartRef.current = new Chart(canvasRef.current, {
+      type: 'radar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: { duration: 600, easing: 'easeInOutQuart' },
+        scales: {
+          r: {
+            min: 0,
+            max: 7,
+            ticks: {
+              stepSize: 1,
+              color: tickColor,
+              backdropColor: 'transparent',
+              font: { size: 10, family: "'JetBrains Mono', monospace" },
+              callback: v => v === 0 ? '' : v,
+            },
+            grid: {
+              color: gridColor,
+              lineWidth: 1,
+            },
+            angleLines: {
+              color: gridColor,
+              lineWidth: 1.5,
+            },
+            pointLabels: {
+              color: ctx => {
+                // PCT number line (index 0 in the array) gets accent color
+                return ctx.index !== undefined ? accentColor : labelColor;
+              },
+              font: ctx => {
+                // First line of each label (PCT N) is bold
+                const linesForPoint = labels[ctx.index] || [];
+                return {
+                  size: 11,
+                  weight: ctx.dataIndex === 0 ? '700' : '400',
+                  family: "'Inter', system-ui, sans-serif",
+                };
+              },
+              padding: 12,
+              callback: function(label) {
+                return label;
+              }
+            },
+          }
+        },
+        plugins: {
+          legend: {
+            display: showCohort && cohortScores && cohortScores.length === 10,
+            position: 'bottom',
+            labels: {
+              color: labelColor,
+              font: { size: 12, family: "'Inter', system-ui, sans-serif" },
+              padding: 20,
+              usePointStyle: true,
+              pointStyleWidth: 20,
+            }
+          },
+          tooltip: {
+            callbacks: {
+              title: ctx => {
+                const idx = ctx[0].dataIndex;
+                return `PCT ${idx + 1} — ${PCT_ELEMENTS[idx].title}`;
+              },
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}/7`,
+            },
+            backgroundColor: 'rgba(26,29,28,0.9)',
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 6,
+          }
+        }
+      }
+    });
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
+      }
+    };
+  }, [scores, cohortScores, showCohort]);
+
+  const avg = scores && scores.length
+    ? (scores.filter(Boolean).reduce((a, b) => a + b, 0) / scores.filter(Boolean).length).toFixed(1)
+    : null;
 
   return (
-    <div className="radar-wrap">
-      <svg
-        viewBox={viewBox}
-        style={{ width: '100%', maxWidth: 600, height: 'auto', overflow: 'visible' }}
-      >
-        {/* Concentric rings */}
-        {Array.from({ length: RINGS }, (_, r) => (
-          <circle
-            key={r}
-            cx={CX} cy={CY}
-            r={((r + 1) / RINGS) * RADIUS}
-            fill="none"
-            stroke="var(--line)"
-            strokeWidth="1"
-          />
-        ))}
-
-        {/* Ring value labels */}
-        {Array.from({ length: RINGS }, (_, r) => (
-          <text
-            key={`rl-${r}`}
-            x={CX + 4}
-            y={CY - ((r + 1) / RINGS) * RADIUS + 4}
-            fontSize="9"
-            fill="var(--ink-4)"
-            fontFamily="var(--font-mono)"
-          >
-            {r + 1}
-          </text>
-        ))}
-
-        {/* Axes */}
-        {PCT_ELEMENTS.map((el, i) => {
-          const end = axisEndXY(i);
-          return (
-            <line
-              key={i}
-              x1={CX} y1={CY}
-              x2={end.x} y2={end.y}
-              stroke="var(--line)"
-              strokeWidth="1.5"
-            />
-          );
-        })}
-
-        {/* Quadrant labels — outside the ring */}
-        {quadrantLabels.map(({ label, x, y, color }) => (
-          <text
-            key={label}
-            x={x} y={y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize="8.5"
-            fontWeight="800"
-            letterSpacing="0.07em"
-            fill={color}
-            fontFamily="var(--font-sans)"
-          >
-            {label}
-          </text>
-        ))}
-
-        {/* Cohort avg polygon (dashed) */}
-        {showCohort && cohortScores && cohortScores.length === AXES && (
-          <polygon
-            points={buildPolygon(cohortScores)}
-            fill="none"
-            stroke="var(--ink-4)"
-            strokeWidth="1.5"
-            strokeDasharray="5,3"
-            opacity="0.7"
-          />
-        )}
-
-        {/* Individual filled polygon */}
-        {scores && scores.length === AXES && scores.some(s => s) && (
-          <polygon
-            points={buildPolygon(scores)}
-            fill="var(--accent)"
-            fillOpacity="0.15"
-            stroke="var(--accent)"
-            strokeWidth="2"
-          />
-        )}
-
-        {/* Dots + tooltips */}
-        {scores && PCT_ELEMENTS.map((el, i) => {
-          const val = scores[i];
-          if (!val) return null;
-          const pt = polarToXY(i, val, AXES, RADIUS);
-          return (
-            <circle
-              key={`dot-${i}`}
-              cx={pt.x} cy={pt.y}
-              r="5"
-              fill="var(--accent)"
-              stroke="#fff"
-              strokeWidth="2"
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={() => setTooltip({ i, val, x: pt.x, y: pt.y, name: `PCT ${el.n}` })}
-              onMouseLeave={() => setTooltip(null)}
-            />
-          );
-        })}
-
-        {/* Cohort dots */}
-        {showCohort && cohortScores && PCT_ELEMENTS.map((el, i) => {
-          const val = cohortScores[i];
-          if (!val) return null;
-          const pt = polarToXY(i, val, AXES, RADIUS);
-          return (
-            <circle
-              key={`cdot-${i}`}
-              cx={pt.x} cy={pt.y}
-              r="4"
-              fill="var(--ink-4)"
-              stroke="#fff"
-              strokeWidth="1.5"
-            />
-          );
-        })}
-
-        {/* Axis labels — PCT number + wrapped title */}
-        {PCT_ELEMENTS.map((el, i) => {
-          const { x, y } = labelXY(i);
-          const lines = [`PCT ${el.n}`, ...wrapLabel(el.title)];
-          const lineH = 12;
-          const totalH = lines.length * lineH;
-
-          return (
-            <text
-              key={`label-${i}`}
-              x={x}
-              y={y - totalH / 2}
-              textAnchor="middle"
-              fontFamily="var(--font-sans)"
-              fontSize="9"
-            >
-              {lines.map((ln, li) => (
-                <tspan
-                  key={li}
-                  x={x}
-                  dy={li === 0 ? 0 : lineH}
-                  fontWeight={li === 0 ? '700' : '400'}
-                  fill={li === 0 ? 'var(--accent)' : 'var(--ink-2)'}
-                >
-                  {ln}
-                </tspan>
-              ))}
-            </text>
-          );
-        })}
-
-        {/* Tooltip */}
-        {tooltip && (
-          <g>
-            <rect
-              x={tooltip.x - 40}
-              y={tooltip.y - 32}
-              width={80}
-              height={22}
-              rx={4}
-              fill="var(--ink)"
-              opacity="0.85"
-            />
-            <text
-              x={tooltip.x}
-              y={tooltip.y - 17}
-              textAnchor="middle"
-              fontSize="10"
-              fill="#fff"
-              fontFamily="var(--font-mono)"
-            >
-              {tooltip.name}: {tooltip.val}/7
-            </text>
-          </g>
-        )}
-      </svg>
-
-      {/* Legend — outside SVG, below the chart */}
-      {showCohort && cohortScores && (
+    <div style={{ width: '100%' }}>
+      {avg && (
         <div style={{
           display: 'flex',
-          gap: 20,
-          justifyContent: 'center',
-          marginTop: 12,
-          fontSize: '.8125rem',
-          color: 'var(--ink-3)'
+          justifyContent: 'flex-end',
+          marginBottom: 8,
+          fontFamily: 'var(--font-mono)',
+          fontSize: '.875rem',
+          color: 'var(--accent)',
+          fontWeight: 700
         }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              width: 20, height: 3,
-              background: 'var(--accent)',
-              display: 'inline-block',
-              borderRadius: 2
-            }} />
-            You
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              width: 20, height: 0,
-              display: 'inline-block',
-              borderTop: '2px dashed var(--ink-4)'
-            }} />
-            Cohort Avg
-          </span>
+          Overall avg: {avg}/7
         </div>
       )}
+      <canvas ref={canvasRef} />
     </div>
   );
 }
