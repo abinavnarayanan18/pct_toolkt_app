@@ -15,10 +15,8 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'pct-catalyst-dev-secret-change-in-prod';
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-// Trust Railway's proxy
 app.set('trust proxy', 1);
 
-// Security headers
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -32,16 +30,10 @@ app.use(helmet({
   }
 }));
 
-// Compress responses
 app.use(compression());
-
-// Request logging
 app.use(morgan(IS_PROD ? 'combined' : 'dev'));
-
-// Body parsing
 app.use(express.json());
 
-// Rate limit login endpoint
 const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
@@ -50,12 +42,10 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts. Please wait a minute.' }
 });
 
-// Static files with cache headers
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: IS_PROD ? '1d' : 0,
   etag: true,
   setHeaders(res, filePath) {
-    // Don't cache HTML
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
@@ -78,17 +68,19 @@ function requireAuth(req, res, next) {
 
 // ── Auth routes ──────────────────────────────────────────────
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-
-  const admin = adminHelpers.findByEmail(email);
-  if (!admin) return res.status(401).json({ error: 'Invalid credentials' });
-
-  const match = await bcrypt.compare(password, admin.password_hash);
-  if (!match) return res.status(401).json({ error: 'Invalid credentials' });
-
-  const token = jwt.sign({ id: admin.id, email: admin.email }, JWT_SECRET, { expiresIn: '8h' });
-  res.json({ token, email: admin.email });
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    const admin = await adminHelpers.findByEmail(email);
+    if (!admin) return res.status(401).json({ error: 'Invalid credentials' });
+    const match = await bcrypt.compare(password, admin.password_hash);
+    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+    const token = jwt.sign({ id: admin.id, email: admin.email }, JWT_SECRET, { expiresIn: '8h' });
+    res.json({ token, email: admin.email });
+  } catch (e) {
+    console.error('Login error:', e.message);
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -100,60 +92,100 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 });
 
 // ── Cohort routes ────────────────────────────────────────────
-app.get('/api/cohorts', (req, res) => {
-  res.json(cohortHelpers.list());
+app.get('/api/cohorts', async (req, res) => {
+  try {
+    res.json(await cohortHelpers.list());
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to list cohorts' });
+  }
 });
 
-app.post('/api/cohorts', requireAuth, (req, res) => {
-  const { name, sponsor, status, target, description } = req.body;
-  if (!name) return res.status(400).json({ error: 'Name required' });
-  res.status(201).json(cohortHelpers.create({ name, sponsor, status, target, description }));
+app.post('/api/cohorts', requireAuth, async (req, res) => {
+  try {
+    const { name, sponsor, status, target, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    res.status(201).json(await cohortHelpers.create({ name, sponsor, status, target, description }));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to create cohort' });
+  }
 });
 
-app.get('/api/cohorts/:id', (req, res) => {
-  const cohort = cohortHelpers.get(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
-  res.json(cohort);
+app.get('/api/cohorts/:id', async (req, res) => {
+  try {
+    const cohort = await cohortHelpers.get(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
+    res.json(cohort);
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to get cohort' });
+  }
 });
 
-app.patch('/api/cohorts/:id', requireAuth, (req, res) => {
-  const cohort = cohortHelpers.get(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
-  res.json(cohortHelpers.update(req.params.id, req.body));
+app.patch('/api/cohorts/:id', requireAuth, async (req, res) => {
+  try {
+    const cohort = await cohortHelpers.get(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
+    res.json(await cohortHelpers.update(req.params.id, req.body));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to update cohort' });
+  }
 });
 
-app.delete('/api/cohorts/:id', requireAuth, (req, res) => {
-  cohortHelpers.delete(req.params.id);
-  res.json({ ok: true });
+app.delete('/api/cohorts/:id', requireAuth, async (req, res) => {
+  try {
+    await cohortHelpers.delete(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to delete cohort' });
+  }
 });
 
-app.get('/api/cohorts/:id/responses', requireAuth, (req, res) => {
-  const cohort = cohortHelpers.get(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
-  res.json(cohortHelpers.getResponses(req.params.id));
+app.get('/api/cohorts/:id/responses', requireAuth, async (req, res) => {
+  try {
+    const cohort = await cohortHelpers.get(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
+    res.json(await cohortHelpers.getResponses(req.params.id));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to get responses' });
+  }
 });
 
-app.get('/api/cohorts/:id/radar', (req, res) => {
-  const cohort = cohortHelpers.get(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
-  const data = cohortHelpers.getRadarData(req.params.id);
-  res.json({ released: !!cohort.cohort_avg_released, data });
+app.get('/api/cohorts/:id/radar', async (req, res) => {
+  try {
+    const cohort = await cohortHelpers.get(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
+    const data = await cohortHelpers.getRadarData(req.params.id);
+    res.json({ released: !!cohort.cohort_avg_released, data });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to get radar data' });
+  }
 });
 
-app.patch('/api/cohorts/:id/release', requireAuth, (req, res) => {
-  const cohort = cohortHelpers.toggleRelease(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
-  res.json(cohort);
+app.patch('/api/cohorts/:id/release', requireAuth, async (req, res) => {
+  try {
+    const cohort = await cohortHelpers.toggleRelease(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
+    res.json(cohort);
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to toggle release' });
+  }
 });
 
 app.post('/api/cohorts/:id/synthesize', requireAuth, async (req, res) => {
-  if (!isAIAvailable()) {
-    return res.status(503).json({ error: 'AI synthesis unavailable — ANTHROPIC_API_KEY not configured' });
-  }
-  const cohort = cohortHelpers.get(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
-  const responses = cohortHelpers.getResponses(req.params.id);
   try {
+    if (!isAIAvailable()) {
+      return res.status(503).json({ error: 'AI synthesis unavailable — ANTHROPIC_API_KEY not configured' });
+    }
+    const cohort = await cohortHelpers.get(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
+    const responses = await cohortHelpers.getResponses(req.params.id);
     const synthesis = await generateCohortSynthesis(cohort, responses);
     res.json(synthesis);
   } catch (e) {
@@ -163,34 +195,59 @@ app.post('/api/cohorts/:id/synthesize', requireAuth, async (req, res) => {
 });
 
 // ── Response routes ──────────────────────────────────────────
-app.post('/api/cohorts/:id/responses', (req, res) => {
-  const cohort = cohortHelpers.get(req.params.id);
-  if (!cohort) return res.status(404).json({ error: 'Cohort not found' });
-  if (cohort.status !== 'open') return res.status(403).json({ error: 'Cohort is closed' });
-  res.status(201).json(responseHelpers.create(req.params.id, req.body));
+app.post('/api/cohorts/:id/responses', async (req, res) => {
+  try {
+    const cohort = await cohortHelpers.get(req.params.id);
+    if (!cohort) return res.status(404).json({ error: 'Cohort not found' });
+    if (cohort.status !== 'open') return res.status(403).json({ error: 'Cohort is closed' });
+    res.status(201).json(await responseHelpers.create(req.params.id, req.body));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to create response' });
+  }
 });
 
-app.get('/api/responses/:id', (req, res) => {
-  const response = responseHelpers.get(req.params.id);
-  if (!response) return res.status(404).json({ error: 'Not found' });
-  res.json(response);
+app.get('/api/responses/:id', async (req, res) => {
+  try {
+    const response = await responseHelpers.get(req.params.id);
+    if (!response) return res.status(404).json({ error: 'Not found' });
+    res.json(response);
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to get response' });
+  }
 });
 
-app.patch('/api/responses/:id', (req, res) => {
-  const response = responseHelpers.get(req.params.id);
-  if (!response) return res.status(404).json({ error: 'Not found' });
-  res.json(responseHelpers.update(req.params.id, req.body));
+app.patch('/api/responses/:id', async (req, res) => {
+  try {
+    const response = await responseHelpers.get(req.params.id);
+    if (!response) return res.status(404).json({ error: 'Not found' });
+    res.json(await responseHelpers.update(req.params.id, req.body));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to update response' });
+  }
 });
 
-app.post('/api/responses/:id/submit', (req, res) => {
-  const response = responseHelpers.get(req.params.id);
-  if (!response) return res.status(404).json({ error: 'Not found' });
-  res.json(responseHelpers.submit(req.params.id));
+app.post('/api/responses/:id/submit', async (req, res) => {
+  try {
+    const response = await responseHelpers.get(req.params.id);
+    if (!response) return res.status(404).json({ error: 'Not found' });
+    res.json(await responseHelpers.submit(req.params.id));
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to submit response' });
+  }
 });
 
-app.delete('/api/responses/:id', requireAuth, (req, res) => {
-  responseHelpers.delete(req.params.id);
-  res.json({ ok: true });
+app.delete('/api/responses/:id', requireAuth, async (req, res) => {
+  try {
+    await responseHelpers.delete(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to delete response' });
+  }
 });
 
 // ── AI routes ────────────────────────────────────────────────
@@ -199,15 +256,15 @@ app.get('/api/ai/status', (req, res) => {
 });
 
 app.post('/api/responses/:id/analyze', async (req, res) => {
-  if (!isAIAvailable()) {
-    return res.status(503).json({ error: 'AI analysis unavailable — ANTHROPIC_API_KEY not configured' });
-  }
-  const response = responseHelpers.get(req.params.id);
-  if (!response) return res.status(404).json({ error: 'Not found' });
-  const cohort = cohortHelpers.get(response.cohort_id);
   try {
+    if (!isAIAvailable()) {
+      return res.status(503).json({ error: 'AI analysis unavailable — ANTHROPIC_API_KEY not configured' });
+    }
+    const response = await responseHelpers.get(req.params.id);
+    if (!response) return res.status(404).json({ error: 'Not found' });
+    const cohort = await cohortHelpers.get(response.cohort_id);
     const summary = await generateIndividualSummary(response, cohort ? cohort.name : 'Unknown Cohort');
-    responseHelpers.storeAISummary(req.params.id, summary);
+    await responseHelpers.storeAISummary(req.params.id, summary);
     res.json(summary);
   } catch (e) {
     console.error('AI analysis error:', e.message);
@@ -216,52 +273,62 @@ app.post('/api/responses/:id/analyze', async (req, res) => {
 });
 
 // ── Admin routes ─────────────────────────────────────────────
-app.get('/api/admin/summary', requireAuth, (req, res) => {
-  res.json(adminHelpers.summary());
+app.get('/api/admin/summary', requireAuth, async (req, res) => {
+  try {
+    res.json(await adminHelpers.summary());
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Failed to get summary' });
+  }
 });
 
-app.get('/api/admin/export/:cohortId', requireAuth, (req, res) => {
-  const { cohort, rows } = adminHelpers.exportCSV(req.params.cohortId);
-  if (!cohort) return res.status(404).json({ error: 'Not found' });
+app.get('/api/admin/export/:cohortId', requireAuth, async (req, res) => {
+  try {
+    const { cohort, rows } = await adminHelpers.exportCSV(req.params.cohortId);
+    if (!cohort) return res.status(404).json({ error: 'Not found' });
 
-  const PCT_TITLES = [
-    'Communicate_a_Compelling_Change_Narrative',
-    'Act_to_Think_Differently',
-    'Embrace_Situational_Humility',
-    'Focus_Attention_on_What_Matters',
-    'Motivate_Discretionary_Effort',
-    'Give_Others_Agency',
-    'Decentralize_Decision_Making',
-    'Catalyze_the_Network',
-    'Lead_the_System',
-    'Nudge_the_Culture'
-  ];
+    const PCT_TITLES = [
+      'Communicate_a_Compelling_Change_Narrative',
+      'Act_to_Think_Differently',
+      'Embrace_Situational_Humility',
+      'Focus_Attention_on_What_Matters',
+      'Motivate_Discretionary_Effort',
+      'Give_Others_Agency',
+      'Decentralize_Decision_Making',
+      'Catalyze_the_Network',
+      'Lead_the_System',
+      'Nudge_the_Culture'
+    ];
 
-  const headers = [
-    'id', 'name', 'role', 'submitted_at',
-    ...PCT_TITLES.map((t, i) => `PCT${i + 1}_${t}`),
-    'priority_element', 'ai_generated_at'
-  ];
+    const headers = [
+      'id', 'name', 'role', 'submitted_at',
+      ...PCT_TITLES.map((t, i) => `PCT${i + 1}_${t}`),
+      'priority_element', 'ai_generated_at'
+    ];
 
-  const csvRows = rows.map(r => {
-    const scores = JSON.parse(r.scores || '[]');
-    const priority = r.priority !== null && r.priority !== undefined ? r.priority : '';
-    const priorityTitle = priority !== '' ? `PCT${Number(priority) + 1}` : '';
-    return [
-      r.id, r.name || '', r.role || '', r.submitted_at || '',
-      ...scores.map(s => s ?? ''),
-      priorityTitle,
-      r.ai_generated_at || ''
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
-  });
+    const csvRows = rows.map(r => {
+      const scores = JSON.parse(r.scores || '[]');
+      const priority = r.priority !== null && r.priority !== undefined ? r.priority : '';
+      const priorityTitle = priority !== '' ? `PCT${Number(priority) + 1}` : '';
+      return [
+        r.id, r.name || '', r.role || '', r.submitted_at || '',
+        ...scores.map(s => s ?? ''),
+        priorityTitle,
+        r.ai_generated_at || ''
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+    });
 
-  const csv = [headers.join(','), ...csvRows].join('\n');
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="pct_${cohort.name.replace(/[^a-z0-9]/gi, '_')}_export.csv"`);
-  res.send(csv);
+    const csv = [headers.join(','), ...csvRows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="pct_${cohort.name.replace(/[^a-z0-9]/gi, '_')}_export.csv"`);
+    res.send(csv);
+  } catch (e) {
+    console.error(e.message);
+    res.status(500).json({ error: 'Export failed' });
+  }
 });
 
-// SPA fallback — serve index.html for all non-API routes
+// ── SPA fallback ─────────────────────────────────────────────
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Not found' });
