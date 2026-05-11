@@ -6,7 +6,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
   const RADIUS = 160;
   const RINGS = 7;
   const AXES = 10;
-  const LABEL_PAD = 90;
+  const LABEL_PAD = 100;
 
   // Offset so PCT1 is at top (subtract 90deg)
   function polarToXY(index, value, total, radius) {
@@ -38,7 +38,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
   // Quadrant labels at midpoints between axes
   function quadrantLabelPos(axisA, axisB) {
     const midAngle = ((2 * Math.PI * axisA) / AXES + (2 * Math.PI * axisB) / AXES) / 2 - Math.PI / 2;
-    const r = RADIUS + 130;
+    const r = RADIUS + 145;
     return { x: CX + r * Math.cos(midAngle), y: CY + r * Math.sin(midAngle) };
   }
 
@@ -116,7 +116,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
             key={`rl-${r}`}
             x={CX + 4}
             y={CY - ((r + 1) / RINGS) * RADIUS + 4}
-            fontSize="9"
+            fontSize="8"
             fill="var(--ink-4)"
             fontFamily="var(--font-mono)"
           >
@@ -145,7 +145,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
             x={pos.x} y={pos.y}
             textAnchor="middle"
             dominantBaseline="middle"
-            fontSize="9"
+            fontSize="8"
             fontWeight="800"
             letterSpacing="0.06em"
             fill={color}

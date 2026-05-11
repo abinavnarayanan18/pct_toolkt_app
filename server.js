@@ -288,7 +288,22 @@ app.get('/api/admin/summary', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/admin/export/:cohortId', requireAuth, async (req, res) => {
+app.get('/api/admin/export/:cohortId', async (req, res) => {
+  // Accept token from Authorization header OR ?token= query param (for direct browser downloads)
+  let token = null;
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    token = header.slice(7);
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   try {
     const { cohort, rows } = await adminHelpers.exportCSV(req.params.cohortId);
     if (!cohort) return res.status(404).json({ error: 'Not found' });
@@ -313,7 +328,6 @@ app.get('/api/admin/export/:cohortId', requireAuth, async (req, res) => {
     ];
 
     const csvRows = rows.map(r => {
-      // safeParse handles Postgres returning TEXT columns as strings OR already-parsed arrays
       const scores = safeParse(r.scores, []);
       const priority = r.priority !== null && r.priority !== undefined ? r.priority : '';
       const priorityTitle = priority !== '' ? `PCT${Number(priority) + 1}` : '';
@@ -334,7 +348,6 @@ app.get('/api/admin/export/:cohortId', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Export failed' });
   }
 });
-
 // ── SPA fallback ─────────────────────────────────────────────
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {

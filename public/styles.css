@@ -1396,3 +1396,158 @@ tr:hover td { background: var(--surface-2); }
 
   h1, h2, h3 { break-after: avoid; }
 }
+
+
+
+/* ── Likert scale fix ────────────────────────────────────────── */
+.likert-scale {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.likert-btn {
+  flex: 1;
+  height: 44px;
+  min-width: 0;
+  max-width: 60px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: .9375rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.likert-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-tint);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(31,111,92,.12);
+}
+
+.likert-btn.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(31,111,92,.25);
+}
+
+.likert-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: .6875rem;
+  color: var(--ink-4);
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+/* ── Action buttons — uniform style ─────────────────────────── */
+.action-btn-group {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn-group .btn {
+  padding: 5px 12px;
+  font-size: .8125rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.action-btn-group .btn:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-4);
+}
+
+.action-btn-group .btn-danger {
+  background: var(--surface);
+  color: #c0392b;
+  border-color: #fac5c0;
+}
+
+.action-btn-group .btn-danger:hover {
+  background: #fff1f0;
+}
+
+/* ── Overview dashboard improvements ────────────────────────── */
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  text-align: center;
+  transition: all var(--transition);
+  cursor: default;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.stat-num {
+  font-family: var(--font-mono);
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: .8125rem;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+
+/* ── Release avg tooltip ─────────────────────────────────────── */
+.release-avg-btn {
+  position: relative;
+}
+
+.release-avg-btn .tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--ink);
+  color: #fff;
+  font-size: .75rem;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  width: 240px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.release-avg-btn .tooltip::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+
+.release-avg-btn:hover .tooltip {
+  display: block;
+}
