@@ -52,6 +52,14 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+// ── Helpers ──────────────────────────────────────────────────
+// Safely parse a value that may already be a parsed object or a JSON string
+function safeParse(val, fallback) {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val !== 'string') return val; // already parsed by Postgres driver
+  try { return JSON.parse(val); } catch { return fallback; }
+}
+
 // ── Auth middleware ──────────────────────────────────────────
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -83,9 +91,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   }
 });
 
-app.post('/api/auth/logout', (req, res) => {
-  res.json({ ok: true });
-});
+app.post('/api/auth/logout', (req, res) => res.json({ ok: true }));
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ email: req.admin.email });
@@ -307,12 +313,13 @@ app.get('/api/admin/export/:cohortId', requireAuth, async (req, res) => {
     ];
 
     const csvRows = rows.map(r => {
-      const scores = JSON.parse(r.scores || '[]');
+      // safeParse handles Postgres returning TEXT columns as strings OR already-parsed arrays
+      const scores = safeParse(r.scores, []);
       const priority = r.priority !== null && r.priority !== undefined ? r.priority : '';
       const priorityTitle = priority !== '' ? `PCT${Number(priority) + 1}` : '';
       return [
         r.id, r.name || '', r.role || '', r.submitted_at || '',
-        ...scores.map(s => s ?? ''),
+        ...Array.isArray(scores) ? scores.map(s => s ?? '') : Array(10).fill(''),
         priorityTitle,
         r.ai_generated_at || ''
       ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');

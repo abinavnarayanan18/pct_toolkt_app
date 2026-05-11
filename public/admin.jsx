@@ -1,5 +1,12 @@
 // ── Admin Console ────────────────────────────────────────────
 
+// Safely parse a value that may already be parsed or be a JSON string
+function safeParse(val, fallback) {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val !== 'string') return val;
+  try { return JSON.parse(val); } catch { return fallback; }
+}
+
 function AdminApp() {
   const [token, setToken] = React.useState(() => localStorage.getItem('pct_admin_token'));
   const [activeNav, setActiveNav] = React.useState('overview');
@@ -44,10 +51,7 @@ function AdminApp() {
   }, []);
 
   React.useEffect(() => {
-    if (token) {
-      loadCohorts();
-      loadStats();
-    }
+    if (token) { loadCohorts(); loadStats(); }
   }, [token]);
 
   React.useEffect(() => {
@@ -58,14 +62,13 @@ function AdminApp() {
 
   return (
     <div className="admin-layout">
-      {/* Sidebar */}
       <div className="admin-sidebar">
         <div style={{ marginBottom: 24 }}>
           <div className="label" style={{ marginBottom: 8 }}>Navigation</div>
           {[
             { id: 'overview', label: '📊 Overview' },
-            { id: 'cohorts', label: '👥 Cohorts' },
-            { id: 'responses', label: '📝 Responses' }
+            { id: 'cohorts',  label: '👥 Cohorts' },
+            { id: 'responses',label: '📝 Responses' }
           ].map(item => (
             <button
               key={item.id}
@@ -81,7 +84,6 @@ function AdminApp() {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="admin-content">
         {activeNav === 'overview' && (
           <AdminOverview stats={stats} cohorts={cohorts} onRefresh={() => { loadCohorts(); loadStats(); }} />
@@ -111,10 +113,7 @@ function AdminApp() {
                 method: 'PATCH', headers: authHeader
               });
               const data = await r.json();
-              if (!data.error) {
-                setSelectedCohort(data);
-                loadCohorts();
-              }
+              if (!data.error) { setSelectedCohort(data); loadCohorts(); }
             }}
             onSynthesize={async () => {
               if (!selectedCohort) return;
@@ -133,7 +132,6 @@ function AdminApp() {
         )}
       </div>
 
-      {/* Response slide-over */}
       {slideoverResponse && (
         <>
           <div className="overlay" style={{ alignItems: 'stretch', justifyContent: 'flex-end', padding: 0 }}
@@ -152,7 +150,6 @@ function AdminApp() {
         </>
       )}
 
-      {/* New cohort modal */}
       {cohortModal !== null && (
         <CohortModal
           cohort={cohortModal}
@@ -222,46 +219,23 @@ function AdminOverview({ stats, cohorts, onRefresh }) {
         <h2>Platform Overview</h2>
         <button className="btn btn-secondary btn-sm" onClick={onRefresh}>↺ Refresh</button>
       </div>
-
       {stats && (
         <div className="stats-grid" style={{ marginBottom: 24 }}>
-          <div className="stat-card">
-            <div className="stat-num">{stats.totalCohorts}</div>
-            <div className="stat-label">Total Cohorts</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-num">{stats.openCohorts}</div>
-            <div className="stat-label">Open Cohorts</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-num">{stats.totalResponses}</div>
-            <div className="stat-label">Total Responses</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-num">{stats.submitted}</div>
-            <div className="stat-label">Submitted</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-num">{stats.withAI}</div>
-            <div className="stat-label">AI Analyses</div>
-          </div>
+          <div className="stat-card"><div className="stat-num">{stats.totalCohorts}</div><div className="stat-label">Total Cohorts</div></div>
+          <div className="stat-card"><div className="stat-num">{stats.openCohorts}</div><div className="stat-label">Open Cohorts</div></div>
+          <div className="stat-card"><div className="stat-num">{stats.totalResponses}</div><div className="stat-label">Total Responses</div></div>
+          <div className="stat-card"><div className="stat-num">{stats.submitted}</div><div className="stat-label">Submitted</div></div>
+          <div className="stat-card"><div className="stat-num">{stats.withAI}</div><div className="stat-label">AI Analyses</div></div>
         </div>
       )}
-
       <div className="card">
-        <div className="card-header">
-          <h3>Recent Cohorts</h3>
-        </div>
+        <div className="card-header"><h3>Recent Cohorts</h3></div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Sponsor</th>
-                <th>Status</th>
-                <th>Responses</th>
-                <th>Submitted</th>
-                <th>Created</th>
+                <th>Name</th><th>Sponsor</th><th>Status</th>
+                <th>Responses</th><th>Submitted</th><th>Created</th>
               </tr>
             </thead>
             <tbody>
@@ -269,11 +243,7 @@ function AdminOverview({ stats, cohorts, onRefresh }) {
                 <tr key={c.id}>
                   <td><strong>{c.name}</strong></td>
                   <td>{c.sponsor || '—'}</td>
-                  <td>
-                    <span className={`badge ${c.status === 'open' ? 'badge-green' : 'badge-gray'}`}>
-                      {c.status}
-                    </span>
-                  </td>
+                  <td><span className={`badge ${c.status === 'open' ? 'badge-green' : 'badge-gray'}`}>{c.status}</span></td>
                   <td>{c.response_count || 0}</td>
                   <td>{c.submitted_count || 0}</td>
                   <td className="small muted">{new Date(c.created_at).toLocaleDateString()}</td>
@@ -315,46 +285,32 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
         <h2>Cohorts</h2>
         <button className="btn btn-primary btn-sm" onClick={onNew}>+ New Cohort</button>
       </div>
-
       <div className="card">
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Cohort</th>
-                <th>Sponsor</th>
-                <th>Status</th>
-                <th>Target</th>
-                <th>Responses</th>
-                <th>Actions</th>
+                <th>Cohort</th><th>Sponsor</th><th>Status</th>
+                <th>Target</th><th>Responses</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {cohorts.map(c => (
                 <tr key={c.id}>
                   <td>
-                    <button
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: 'var(--accent)', padding: 0 }}
-                      onClick={() => onSelect(c)}
-                    >
+                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, color: 'var(--accent)', padding: 0 }} onClick={() => onSelect(c)}>
                       {c.name}
                     </button>
                     {c.description && <p className="small muted" style={{ marginTop: 2 }}>{c.description.slice(0, 60)}{c.description.length > 60 ? '…' : ''}</p>}
                   </td>
                   <td>{c.sponsor || '—'}</td>
-                  <td>
-                    <span className={`badge ${c.status === 'open' ? 'badge-green' : 'badge-gray'}`}>
-                      {c.status}
-                    </span>
-                  </td>
+                  <td><span className={`badge ${c.status === 'open' ? 'badge-green' : 'badge-gray'}`}>{c.status}</span></td>
                   <td>{c.target}</td>
                   <td>{c.response_count || 0} / {c.submitted_count || 0} submitted</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => onSelect(c)}>View</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => handleToggle(c)}>
-                        {c.status === 'open' ? 'Close' : 'Open'}
-                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => handleToggle(c)}>{c.status === 'open' ? 'Close' : 'Open'}</button>
                       <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c)}>Delete</button>
                     </div>
                   </td>
@@ -392,11 +348,7 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
             <>
               <button className="btn btn-secondary btn-sm" onClick={onRefresh}>↺ Refresh</button>
               <button className="btn btn-secondary btn-sm" onClick={handleExport}>⬇ CSV</button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={onToggleRelease}
-                title="Toggle cohort average visibility for participants"
-              >
+              <button className="btn btn-secondary btn-sm" onClick={onToggleRelease} title="Toggle cohort average visibility for participants">
                 {cohort.cohort_avg_released ? '🔒 Hide Avg' : '📊 Release Avg'}
               </button>
               <button
@@ -412,37 +364,23 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
         </div>
       </div>
 
-      {/* Cohort selector */}
       <div className="form-group" style={{ marginBottom: 16, maxWidth: 300 }}>
         <label className="form-label">Select Cohort</label>
-        <select
-          className="form-select"
-          value={cohort?.id || ''}
-          onChange={e => {
-            const c = cohorts.find(x => x.id === e.target.value);
-            if (c) onSelectCohort(c);
-          }}
-        >
+        <select className="form-select" value={cohort?.id || ''} onChange={e => { const c = cohorts.find(x => x.id === e.target.value); if (c) onSelectCohort(c); }}>
           <option value="">— Choose cohort —</option>
           {cohorts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
-      {/* Cohort stats */}
       {cohort && (
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <div className="badge badge-gray">{responses.length} responses total</div>
           <div className="badge badge-green">{submitted.length} submitted</div>
-          <div className={`badge ${cohort.status === 'open' ? 'badge-green' : 'badge-gray'}`}>
-            {cohort.status}
-          </div>
-          {cohort.cohort_avg_released ? (
-            <div className="badge badge-blue">Avg released to participants</div>
-          ) : null}
+          <div className={`badge ${cohort.status === 'open' ? 'badge-green' : 'badge-gray'}`}>{cohort.status}</div>
+          {cohort.cohort_avg_released ? <div className="badge badge-blue">Avg released to participants</div> : null}
         </div>
       )}
 
-      {/* Synthesis result */}
       {showSynth && (
         <div className="card" style={{ marginBottom: 20, border: '1.5px solid var(--accent)' }}>
           <div className="card-header">
@@ -454,18 +392,13 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
         </div>
       )}
 
-      {/* Responses table */}
       <div className="card">
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Progress</th>
-                <th>Submitted</th>
-                <th>AI Analysis</th>
-                <th>Actions</th>
+                <th>Name</th><th>Role</th><th>Progress</th>
+                <th>Submitted</th><th>AI Analysis</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -492,9 +425,7 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
                       : <span className="badge badge-gray">—</span>}
                   </td>
                   <td>
-                    <button className="btn btn-secondary btn-sm" onClick={() => onOpenResponse(r)}>
-                      View
-                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => onOpenResponse(r)}>View</button>
                   </td>
                 </tr>
               ))}
@@ -521,7 +452,6 @@ function CohortSynthesisDisplay({ synthesis }) {
           <p className="headline-text" style={{ marginTop: 4 }}>"{synthesis.cohortHeadline}"</p>
         </div>
       )}
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {synthesis.collectiveStrengths && (
           <div style={{ background: 'var(--accent-tint)', borderRadius: 'var(--radius-sm)', padding: 12, borderLeft: '3px solid var(--accent)' }}>
@@ -536,14 +466,12 @@ function CohortSynthesisDisplay({ synthesis }) {
           </div>
         )}
       </div>
-
       {synthesis.priorityAlignment && (
         <div>
           <div className="label" style={{ marginBottom: 6 }}>Priority Alignment</div>
           <p className="small">{synthesis.priorityAlignment}</p>
         </div>
       )}
-
       {synthesis.facilitatorRecommendations && (
         <div>
           <div className="label" style={{ marginBottom: 8 }}>Facilitator Recommendations</div>
@@ -556,7 +484,6 @@ function CohortSynthesisDisplay({ synthesis }) {
           ))}
         </div>
       )}
-
       {synthesis.sessionDesignSuggestion && (
         <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: 12 }}>
           <div className="label" style={{ marginBottom: 6 }}>Session Design Suggestion</div>
@@ -569,38 +496,26 @@ function CohortSynthesisDisplay({ synthesis }) {
 
 // ── Response Slide-over ───────────────────────────────────────
 function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) {
-  const [aiSummary, setAiSummary] = React.useState(() => {
-    try { return response.ai_summary ? JSON.parse(response.ai_summary) : null; } catch { return null; }
-  });
+  const [aiSummary, setAiSummary] = React.useState(() => safeParse(response.ai_summary, null));
   const [aiLoading, setAiLoading] = React.useState(false);
   const [aiError, setAiError] = React.useState(null);
   const [aiExpanded, setAiExpanded] = React.useState(false);
 
   const authHeader = { Authorization: `Bearer ${token}` };
 
-  const scores = React.useMemo(() => {
-    try { return JSON.parse(response.scores || '[]'); } catch { return []; }
-  }, [response]);
+  const scores   = React.useMemo(() => safeParse(response.scores, []),     [response]);
+  const ranking  = React.useMemo(() => safeParse(response.ranking, []),    [response]);
+  const activators = React.useMemo(() => safeParse(response.activators, {}), [response]);
 
-  const ranking = React.useMemo(() => {
-    try { return JSON.parse(response.ranking || '[]'); } catch { return []; }
-  }, [response]);
-
-  const activators = React.useMemo(() => {
-    try { return JSON.parse(response.activators || '{}'); } catch { return {}; }
-  }, [response]);
-
-  const priority = response.priority;
-  const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
+  const priority   = response.priority;
+  const priorityEl = (priority !== null && priority !== undefined) ? PCT_ELEMENTS[priority] : null;
   const topShiftIdx = ranking.length > 0 ? ranking[0] : null;
-  const mbd = topShiftIdx !== null && topShiftIdx !== undefined ? (activators[topShiftIdx] || {}) : {};
+  const mbd = (topShiftIdx !== null && topShiftIdx !== undefined) ? (activators[topShiftIdx] || {}) : {};
 
   async function generateAI() {
     setAiLoading(true);
     setAiError(null);
-    const r = await fetch(`/api/responses/${response.id}/analyze`, {
-      method: 'POST', headers: authHeader
-    });
+    const r = await fetch(`/api/responses/${response.id}/analyze`, { method: 'POST', headers: authHeader });
     const data = await r.json();
     setAiLoading(false);
     if (data.error) { setAiError(data.error); return; }
@@ -628,12 +543,8 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
             <div className="label" style={{ marginBottom: 10 }}>PCT Pulse Scores</div>
             {PCT_ELEMENTS.map((el, i) => (
               <div key={el.n} className="score-row" style={{ marginBottom: 6 }}>
-                <div className="score-label">
-                  <strong>PCT {el.n}</strong> {el.title.slice(0, 28)}…
-                </div>
-                <div className="score-bar">
-                  <div className="score-bar-fill" style={{ width: `${((scores[i] || 0) / 7) * 100}%` }} />
-                </div>
+                <div className="score-label"><strong>PCT {el.n}</strong> {el.title.slice(0, 28)}…</div>
+                <div className="score-bar"><div className="score-bar-fill" style={{ width: `${((scores[i] || 0) / 7) * 100}%` }} /></div>
                 <div className="score-num">{scores[i] ?? '–'}/7</div>
               </div>
             ))}
@@ -655,12 +566,12 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
           </div>
         )}
 
-        {/* Top ranked shifts */}
+        {/* Top ranked shifts — with null guard on shift */}
         {ranking.length > 0 && priorityEl && (
           <div style={{ marginBottom: 16 }}>
             <div className="label" style={{ marginBottom: 6 }}>Top {Math.min(3, ranking.length)} Ranked Shifts</div>
             {ranking.slice(0, 3).map((shiftIdx, rank) => {
-              const shift = priorityEl.shifts[shiftIdx];
+              const shift = priorityEl.shifts && priorityEl.shifts[shiftIdx];
               if (!shift) return null;
               return (
                 <p key={shiftIdx} className="small" style={{ marginBottom: 4 }}>
@@ -672,14 +583,12 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
           </div>
         )}
 
-        {/* AI Summary section */}
+        {/* AI Summary */}
         <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div className="label">AI Analysis</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {aiSummary && (
-                <button className="btn btn-ghost btn-sm" onClick={generateAI}>↺ Regen</button>
-              )}
+              {aiSummary && <button className="btn btn-ghost btn-sm" onClick={generateAI}>↺ Regen</button>}
               <button
                 className="btn btn-primary btn-sm"
                 onClick={generateAI}
@@ -701,12 +610,9 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
 
           {aiSummary && (
             <div>
-              <div
-                className="collapsible-header"
-                onClick={() => setAiExpanded(!aiExpanded)}
-              >
+              <div className="collapsible-header" onClick={() => setAiExpanded(!aiExpanded)}>
                 <span className="small" style={{ fontWeight: 500 }}>
-                  "{aiSummary.headline?.slice(0, 60)}…"
+                  "{(aiSummary.headline || '').slice(0, 60)}…"
                 </span>
                 <span className={`chevron ${aiExpanded ? 'open' : ''}`}>▶</span>
               </div>
