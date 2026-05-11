@@ -1,207 +1,180 @@
-// ── PCT PDF Visual Components ─────────────────────────────────
-//
-// PDFVisual: renders an image from /images/<concept>.png with a
-// labelled placeholder fallback if the file is not present.
-//
-// ConceptCard: displays a key quote or principle from the PCT PDF
-// inline in the participant flow at strategic moments.
+// ── PCT Visuals ──────────────────────────────────────────────────────────────
 
-// Concept metadata — used for fallback labels and alt text
-const PDF_CONCEPTS = {
-  'framework':           { label: 'PCT Framework', desc: '4-Quadrant Leadership Wheel' },
-  'heart-head-hands':    { label: 'Heart · Head · Hands', desc: 'The three dimensions of leadership shift' },
-  'mbd':                 { label: 'MBD Activators', desc: 'More Of · Better · Differently' },
-  'pulse-intro':         { label: 'PCT Pulse', desc: 'How we measure leadership practice today' },
-  'shifts-intro':        { label: 'Leadership Shifts', desc: 'From current to desired behavior' },
-  'quadrant-aspiration': { label: 'ASPIRATION', desc: 'PCT 1 & 2' },
-  'quadrant-alignment':  { label: 'ALIGNMENT',  desc: 'PCT 3, 4 & 10' },
-  'quadrant-autonomy':   { label: 'AUTONOMY',   desc: 'PCT 5 & 6' },
-  'quadrant-accountability': { label: 'ACCOUNTABILITY', desc: 'PCT 7, 8 & 9' }
-};
-
-function PDFVisual({ concept, style, caption }) {
-  const [status, setStatus] = React.useState('loading'); // 'loading' | 'loaded' | 'missing'
-  const meta = PDF_CONCEPTS[concept] || { label: concept, desc: '' };
-
-  // Try both .png and .jpg
-  const [src, setSrc] = React.useState(`/images/${concept}.png`);
-
-  function handleError() {
-    if (src.endsWith('.png')) {
-      setSrc(`/images/${concept}.jpg`);
-    } else {
-      setStatus('missing');
-    }
-  }
-
-  return (
-    <div className="pdf-visual-wrap" style={style}>
-      {status !== 'missing' && (
-        <img
-          src={src}
-          alt={meta.label}
-          onLoad={() => setStatus('loaded')}
-          onError={handleError}
-          style={{
-            display: status === 'loaded' ? 'block' : 'none',
-            width: '100%',
-            height: 'auto',
-            borderRadius: 'var(--radius)',
-            border: '1px solid var(--line)'
-          }}
-        />
-      )}
-
-      {status === 'loading' && (
-        <div className="pdf-visual-placeholder">
-          <div className="spinner" />
-        </div>
-      )}
-
-      {status === 'missing' && (
-        <div className="pdf-visual-placeholder">
-          <div className="pdf-placeholder-icon">📄</div>
-          <div className="pdf-placeholder-label">{meta.label}</div>
-          {meta.desc && <div className="pdf-placeholder-desc">{meta.desc}</div>}
-          <div className="pdf-placeholder-hint">
-            Add <code>/public/images/{concept}.png</code> to show this visual
-          </div>
-        </div>
-      )}
-
-      {caption && status === 'loaded' && (
-        <p className="pdf-visual-caption">{caption}</p>
-      )}
-    </div>
-  );
-}
-
-// ConceptCard: a pull-quote or principle from the PDF, used inline
-// in the participant flow at strategic moments.
-function ConceptCard({ quote, source, accent, children }) {
-  const borderColor = accent || 'var(--red)';
-  return (
-    <div className="concept-card" style={{ borderLeftColor: borderColor }}>
-      {quote && (
-        <blockquote className="concept-quote">
-          "{quote}"
-        </blockquote>
-      )}
-      {source && (
-        <cite className="concept-source">— {source}</cite>
-      )}
-      {children}
-    </div>
-  );
-}
-
-// PCTFrameworkPanel: shows the PCT framework image + element list,
-// used on the home page and as an intro before Step 2.
+// PCT Framework 4-Quadrant Panel — fully built-in, no image dependency
 function PCTFrameworkPanel({ compact }) {
   const quadrants = [
     {
       key: 'ASPIRATION',
       label: 'Aspiration',
-      color: 'var(--q-aspiration)',
-      bg: 'var(--q-aspiration-bg)',
       icon: '🎯',
+      cls: 'quadrant-aspiration',
+      color: '#1e40af',
       elements: PCT_ELEMENTS.filter(e => e.quadrant === 'ASPIRATION')
     },
     {
       key: 'ALIGNMENT',
       label: 'Alignment',
-      color: 'var(--q-alignment)',
-      bg: 'var(--q-alignment-bg)',
       icon: '🧭',
+      cls: 'quadrant-alignment',
+      color: '#6d28d9',
       elements: PCT_ELEMENTS.filter(e => e.quadrant === 'ALIGNMENT')
     },
     {
       key: 'AUTONOMY',
       label: 'Autonomy',
-      color: 'var(--q-autonomy)',
-      bg: 'var(--q-autonomy-bg)',
       icon: '⚡',
+      cls: 'quadrant-autonomy',
+      color: '#c2410c',
       elements: PCT_ELEMENTS.filter(e => e.quadrant === 'AUTONOMY')
     },
     {
       key: 'ACCOUNTABILITY',
       label: 'Accountability',
-      color: 'var(--q-accountability)',
-      bg: 'var(--q-accountability-bg)',
       icon: '🔗',
+      cls: 'quadrant-accountability',
+      color: '#065f46',
       elements: PCT_ELEMENTS.filter(e => e.quadrant === 'ACCOUNTABILITY')
     }
   ];
 
   return (
-    <div className="framework-panel">
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 10,
-        marginTop: 8
-      }}>
-        {quadrants.map(q => (
-          <div key={q.key} style={{
-            background: q.bg,
-            borderRadius: 'var(--radius-lg)',
-            padding: '14px 16px',
-            border: `1.5px solid ${q.color}22`
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: 10
-            }}>
-              <span style={{ fontSize: '1rem' }}>{q.icon}</span>
-              <span style={{
-                fontSize: '.6875rem',
-                fontWeight: 700,
-                letterSpacing: '.07em',
-                textTransform: 'uppercase',
-                color: q.color
-              }}>{q.label}</span>
-            </div>
-            {q.elements.map(el => (
-              <div key={el.n} style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 6,
-                marginBottom: 5,
-                fontSize: '.8125rem'
-              }}>
-                <span style={{
-                  fontWeight: 700,
-                  color: q.color,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '.6875rem',
-                  flexShrink: 0
-                }}>PCT {el.n}</span>
-                <span style={{ color: 'var(--ink-2)', lineHeight: 1.3 }}>{el.title}</span>
-              </div>
-            ))}
+    <div className="grid grid-cols-2 gap-2.5 mt-2">
+      {quadrants.map(q => (
+        <div key={q.key} className={`quadrant-card ${q.cls}`}>
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="text-base">{q.icon}</span>
+            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: q.color }}>
+              {q.label}
+            </span>
           </div>
-        ))}
-      </div>
+          {q.elements.map(el => (
+            <div key={el.n} className="flex items-baseline gap-1.5 mb-1.5">
+              <span
+                className="text-xs font-bold font-mono-app shrink-0"
+                style={{ color: q.color, fontSize: '0.6875rem' }}
+              >
+                PCT {el.n}
+              </span>
+              <span className="text-xs leading-snug" style={{ color: '#334155' }}>
+                {el.title}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
-// MBDIntroPanel: brief visual explanation of MBD before Step 5
-function MBDIntroPanel() {
+
+// Concept card — blockquote style
+function ConceptCard({ quote, source, className }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-      <PDFVisual concept="mbd" style={{ alignSelf: 'start' }} />
-      <ConceptCard
-        quote="The goal is not to think your way into a new way of acting, but to act your way into a new way of thinking."
-        source="PCT Methodology"
-      >
-        <p className="small muted" style={{ marginTop: 10, lineHeight: 1.6 }}>
-          MBD Activators turn your chosen shift into a concrete behavioral plan.
-          Define what you will do MORE OF, get BETTER at, or do DIFFERENTLY —
-          then commit to when you'll know it's complete.
+    <div className={`border-l-4 pl-4 py-2 ${className || ''}`}
+         style={{ borderColor: '#0f766e', background: 'oklch(97% 0.035 172.9)', borderRadius: '0 6px 6px 0' }}>
+      {quote && (
+        <p className="font-display italic text-base leading-relaxed" style={{ color: '#0f172a', fontWeight: 300 }}>
+          "{quote}"
         </p>
-      </ConceptCard>
+      )}
+      {source && (
+        <p className="text-xs mt-2 font-semibold tracking-wider uppercase" style={{ color: '#64748b' }}>
+          — {source}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// AI Summary display — used in both participant and admin views
+function AISummaryDisplay({ summary, onRegenerate }) {
+  if (!summary) return null;
+
+  return (
+    <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'oklch(90% 0.009 248)' }}>
+      {/* Header */}
+      <div className="ai-header">
+        <span className="text-lg">✦</span>
+        <div>
+          <p className="text-xs font-bold tracking-widest uppercase opacity-80">AI Leadership Analysis</p>
+          {summary.headline && (
+            <p className="font-display text-lg mt-0.5 leading-snug" style={{ fontWeight: 300 }}>
+              {summary.headline}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Strengths & Development */}
+      {(summary.strengths || summary.developmentAreas) && (
+        <div className="grid grid-cols-2 gap-4 p-4 border-b" style={{ borderColor: 'oklch(90% 0.009 248)' }}>
+          {summary.strengths && summary.strengths.length > 0 && (
+            <div>
+              <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#64748b' }}>
+                Strengths
+              </p>
+              {summary.strengths.map((s, i) => (
+                <div key={i} className="mb-2 pl-3 border-l-2" style={{ borderColor: '#0f766e' }}>
+                  <p className="text-xs font-semibold" style={{ color: '#475569' }}>{s.element}</p>
+                  <p className="text-sm mt-0.5 leading-snug" style={{ color: '#334155' }}>{s.insight}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {summary.developmentAreas && summary.developmentAreas.length > 0 && (
+            <div>
+              <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#64748b' }}>
+                Growth Areas
+              </p>
+              {summary.developmentAreas.map((d, i) => (
+                <div key={i} className="mb-2 pl-3 border-l-2" style={{ borderColor: '#ea580c' }}>
+                  <p className="text-xs font-semibold" style={{ color: '#475569' }}>{d.element}</p>
+                  <p className="text-sm mt-0.5 leading-snug" style={{ color: '#334155' }}>{d.insight}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Priority Insight */}
+      {summary.priorityInsight && (
+        <div className="p-4 border-b" style={{ borderColor: 'oklch(90% 0.009 248)' }}>
+          <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#64748b' }}>
+            Priority Focus
+          </p>
+          <p className="text-sm leading-relaxed" style={{ color: '#334155' }}>{summary.priorityInsight}</p>
+        </div>
+      )}
+
+      {/* Coaching Questions */}
+      {summary.coachingQuestions && summary.coachingQuestions.length > 0 && (
+        <div className="p-4 border-b" style={{ borderColor: 'oklch(90% 0.009 248)' }}>
+          <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: '#64748b' }}>
+            Reflection Questions
+          </p>
+          {summary.coachingQuestions.map((q, i) => (
+            <div key={i} className="coaching-quote mb-2">{q}</div>
+          ))}
+        </div>
+      )}
+
+      {/* 90-day plan */}
+      {summary.ninetyDayPlan && summary.ninetyDayPlan.length > 0 && (
+        <div className="p-4">
+          <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: '#64748b' }}>
+            90-Day Action Plan
+          </p>
+          {summary.ninetyDayPlan.map((item, i) => (
+            <div key={i} className="flex gap-3 pb-3 border-b last:border-b-0 last:pb-0"
+                 style={{ borderColor: 'oklch(90% 0.009 248)' }}>
+              <span className="timeline-period">{item.period || `Week ${(i + 1) * 4}`}</span>
+              <p className="text-sm leading-relaxed flex-1" style={{ color: '#334155' }}>
+                {item.action || item}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

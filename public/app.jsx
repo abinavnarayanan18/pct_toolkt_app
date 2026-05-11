@@ -1,216 +1,211 @@
-// ── Root App Component + Router ──────────────────────────────
+// ── PCT Catalyst App — Root ──────────────────────────────────────────────────
+
+function parseRoute(path) {
+  if (path.startsWith('/admin')) return { page: 'admin' };
+  if (path.startsWith('/participate/')) {
+    const cohortId = path.replace('/participate/', '').split('?')[0].split('#')[0];
+    if (cohortId) return { page: 'participate', params: { cohortId } };
+  }
+  return { page: 'home' };
+}
 
 function App() {
-  const [route, setRoute] = React.useState(() => parseRoute());
-  const [tweaksOpen, setTweaksOpen] = React.useState(false);
-  const [darkMode, setDarkMode] = React.useState(() => localStorage.getItem('pct_dark') === '1');
-  const [compact, setCompact] = React.useState(() => localStorage.getItem('pct_compact') === '1');
-
-  React.useEffect(() => {
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '');
-    localStorage.setItem('pct_dark', darkMode ? '1' : '0');
-  }, [darkMode]);
-
-  React.useEffect(() => {
-    document.documentElement.setAttribute('data-density', compact ? 'compact' : '');
-    localStorage.setItem('pct_compact', compact ? '1' : '0');
-  }, [compact]);
-
-  React.useEffect(() => {
-    function onPop() { setRoute(parseRoute()); }
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
+  const [route, setRoute] = React.useState(() => parseRoute(window.location.pathname));
 
   function navigate(path) {
     window.history.pushState({}, '', path);
     setRoute(parseRoute(path));
   }
 
-  function parseRoute(path) {
-    const href = path || window.location.pathname + window.location.search;
-    const url = new URL(href, window.location.origin);
-    const pathname = url.pathname;
-    const params = Object.fromEntries(url.searchParams);
+  React.useEffect(() => {
+    function onPop() { setRoute(parseRoute(window.location.pathname)); }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
-    if (pathname === '/' || pathname === '') return { page: 'home', params };
-    if (pathname === '/admin') return { page: 'admin', params };
-    if (pathname.startsWith('/participate/')) {
-      const cohortId = pathname.replace('/participate/', '');
-      return { page: 'participate', params: { cohortId } };
-    }
-    return { page: 'home', params };
+  if (route.page === 'admin') {
+    return <AdminApp />;
   }
 
-  const { page, params } = route;
+  if (route.page === 'participate') {
+    return (
+      <div>
+        <TopNav onHome={() => navigate('/')} />
+        <ParticipantApp cohortId={route.params.cohortId} />
+      </div>
+    );
+  }
 
   return (
-    <>
-      <nav className="topnav">
-        <button
-          className="topnav-brand"
-          onClick={() => navigate('/')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-        >
-          <div className="brand-mark">PCT</div>
-          <div>
-            <div className="brand-name">PCT Catalyst</div>
-            <div className="brand-sub">Leadership Assessment</div>
-          </div>
-        </button>
-        <div className="topnav-spacer" />
-        {page === 'participate' && (
-          <div className="role-badge">
-            <span className="role-pill">PARTICIPANT</span>
-          </div>
-        )}
-        {page === 'admin' && (
-          <div className="role-badge">
-            <span className="role-pill">FACILITATOR</span>
-          </div>
-        )}
-      </nav>
-
-      <main>
-        {page === 'home' && <HomePage navigate={navigate} />}
-        {page === 'admin' && <AdminApp />}
-        {page === 'participate' && <ParticipantApp cohortId={params.cohortId} />}
-      </main>
-
-      {/* Tweaks button */}
-      <button
-        className="tweaks-btn no-print"
-        onClick={() => setTweaksOpen(!tweaksOpen)}
-        title="Display settings"
-      >
-        ⚙
-      </button>
-
-      {tweaksOpen && (
-        <div className="tweaks-panel no-print">
-          <h4>Display Settings</h4>
-          <div className="tweak-row">
-            <span>Dark Mode</span>
-            <label className="toggle">
-              <input type="checkbox" checked={darkMode} onChange={e => setDarkMode(e.target.checked)} />
-              <div className="toggle-track" />
-            </label>
-          </div>
-          <div className="tweak-row">
-            <span>Compact</span>
-            <label className="toggle">
-              <input type="checkbox" checked={compact} onChange={e => setCompact(e.target.checked)} />
-              <div className="toggle-track" />
-            </label>
-          </div>
-        </div>
-      )}
-    </>
+    <div>
+      <TopNav onHome={() => navigate('/')} />
+      <HomePage onNavigate={navigate} />
+    </div>
   );
 }
 
-// ── Home Page ─────────────────────────────────────────────────
-function HomePage({ navigate }) {
-  const [cohorts, setCohorts] = React.useState([]);
-  const [cohortCode, setCohortCode] = React.useState('');
-  const [lookupError, setLookupError] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    fetch('/api/cohorts')
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setCohorts(data.filter(c => c.status === 'open')); });
-  }, []);
-
-  async function handleJoin(e) {
-    e.preventDefault();
-    const id = cohortCode.trim();
-    if (!id) return;
-    setLoading(true);
-    setLookupError('');
-    const r = await fetch(`/api/cohorts/${id}`);
-    const data = await r.json();
-    setLoading(false);
-    if (data.error || !data.id) { setLookupError('Cohort not found. Check the ID with your facilitator.'); return; }
-    if (data.status !== 'open') { setLookupError('This cohort is currently closed.'); return; }
-    navigate(`/participate/${data.id}`);
-  }
-
+// ── Top Navigation ────────────────────────────────────────────────────────────
+function TopNav({ onHome }) {
   return (
-    <div className="page-center" style={{ paddingTop: 60 }}>
-      <div className="welcome-hero">
-        <h1>PCT Catalyst</h1>
-        <p>
-          A leadership transformation assessment tool built on the
-          People-Centered Transformation methodology by Tony O'Driscoll, Duke University.
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, maxWidth: 700, margin: '0 auto' }}>
-        {/* Participant panel */}
-        <div className="card card-lg">
-          <h3 style={{ marginBottom: 16 }}>Join as Participant</h3>
-
-          {cohorts.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div className="label" style={{ marginBottom: 8 }}>Open Cohorts</div>
-              {cohorts.slice(0, 4).map(c => (
-                <button
-                  key={c.id}
-                  className="btn btn-secondary w-full"
-                  style={{ marginBottom: 6, justifyContent: 'flex-start' }}
-                  onClick={() => navigate(`/participate/${c.id}`)}
-                >
-                  {c.name}
-                  {c.sponsor && <span className="muted small"> · {c.sponsor}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className="label" style={{ marginBottom: 4 }}>Or enter Cohort ID</div>
-            <input
-              className="form-input"
-              value={cohortCode}
-              onChange={e => setCohortCode(e.target.value)}
-              placeholder="Paste cohort ID…"
-            />
-            {lookupError && <p className="form-error">{lookupError}</p>}
-            <button type="submit" className="btn btn-primary" disabled={loading || !cohortCode.trim()}>
-              {loading ? 'Looking up…' : 'Join Cohort →'}
-            </button>
-          </form>
-        </div>
-
-        {/* Admin panel */}
-        <div className="card card-lg">
-          <h3 style={{ marginBottom: 16 }}>Facilitator Console</h3>
-          <p className="muted small" style={{ marginBottom: 16, lineHeight: 1.6 }}>
-            Manage cohorts, view participant responses, generate AI analyses,
-            and export data.
+    <div className="navbar bg-base-100 border-b border-base-300 shadow-sm sticky top-0 z-50 px-4 h-14 min-h-14">
+      <div className="flex items-center gap-2.5 cursor-pointer" onClick={onHome}>
+        <div className="brand-mark">PCT</div>
+        <div>
+          <p className="font-bold text-sm leading-none tracking-tight">PCT Catalyst</p>
+          <p className="text-xs leading-none mt-0.5" style={{ color: '#94a3b8' }}>
+            Leadership Transformation
           </p>
-          <button
-            className="btn btn-primary w-full"
-            onClick={() => navigate('/admin')}
-          >
-            Open Admin Console →
-          </button>
-          <div style={{ marginTop: 12, padding: 10, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)' }}>
-            <p className="small muted">Default login: admin@pctcatalyst.com</p>
-          </div>
         </div>
-      </div>
-
-      {/* PCT Framework visual + element overview */}
-      <div style={{ marginTop: 48, maxWidth: 700, margin: '48px auto 0' }}>
-        <h3 style={{ textAlign: 'center', marginBottom: 20 }}>The PCT Framework</h3>
-        <PCTFrameworkPanel />
       </div>
     </div>
   );
 }
 
-// ── Bootstrap ─────────────────────────────────────────────────
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+// ── Home Page ─────────────────────────────────────────────────────────────────
+function HomePage({ onNavigate }) {
+  const [cohorts,   setCohorts]   = React.useState([]);
+  const [cohortId,  setCohortId]  = React.useState('');
+  const [loading,   setLoading]   = React.useState(true);
+  const [error,     setError]     = React.useState('');
+
+  React.useEffect(() => {
+    fetch('/api/cohorts')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d)) setCohorts(d.filter(c => c.status === 'open'));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  function handleJoin() {
+    const id = cohortId.trim();
+    if (!id) { setError('Please enter or select a cohort ID.'); return; }
+    onNavigate(`/participate/${id}`);
+  }
+
+  const openCohorts = cohorts.filter(c => c.status === 'open');
+
+  return (
+    <div className="min-h-screen bg-base-200">
+      {/* Hero */}
+      <div className="text-center py-14 px-4">
+        <p className="text-xs font-bold tracking-widest uppercase mb-3" style={{ color: '#0f766e' }}>
+          Duke University · Tony O'Driscoll
+        </p>
+        <h1 className="text-4xl font-display font-light mb-3" style={{ color: '#0f172a' }}>
+          People-Centered Transformation
+        </h1>
+        <p className="text-base max-w-lg mx-auto" style={{ color: '#64748b' }}>
+          Reflect on your leadership across 10 transformation elements and receive
+          a personalised AI-powered development plan.
+        </p>
+      </div>
+
+      {/* Main cards */}
+      <div className="max-w-4xl mx-auto px-4 pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+
+          {/* Join card */}
+          <div className="card bg-base-100 shadow-sm border border-base-300">
+            <div className="card-body gap-4">
+              <h2 className="card-title text-lg">Join as Participant</h2>
+
+              {/* Open cohorts */}
+              {!loading && openCohorts.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest mb-2"
+                     style={{ color: '#94a3b8' }}>
+                    Open Cohorts
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {openCohorts.map(c => (
+                      <button
+                        key={c.id}
+                        className="btn btn-outline btn-sm justify-start gap-3 h-auto py-2.5 px-3"
+                        onClick={() => onNavigate(`/participate/${c.id}`)}
+                      >
+                        <span className="font-semibold">{c.name}</span>
+                        {c.sponsor && (
+                          <span className="text-xs font-normal opacity-60">· {c.sponsor}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual ID entry */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2"
+                   style={{ color: '#94a3b8' }}>
+                  {openCohorts.length > 0 ? 'Or Enter Cohort ID' : 'Enter Cohort ID'}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <input
+                    className="input input-bordered w-full"
+                    value={cohortId}
+                    onChange={e => { setCohortId(e.target.value); setError(''); }}
+                    placeholder="Paste cohort ID…"
+                    onKeyDown={e => e.key === 'Enter' && handleJoin()}
+                  />
+                  {error && (
+                    <p className="text-xs" style={{ color: '#dc2626' }}>{error}</p>
+                  )}
+                  <button
+                    className="btn btn-primary w-full"
+                    onClick={handleJoin}
+                    disabled={!cohortId.trim()}
+                  >
+                    Join Cohort →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Facilitator card */}
+          <div className="card bg-base-100 shadow-sm border border-base-300">
+            <div className="card-body gap-4">
+              <h2 className="card-title text-lg">Facilitator Console</h2>
+              <p className="text-sm" style={{ color: '#64748b' }}>
+                Manage cohorts, view participant responses, generate AI analyses,
+                and export data.
+              </p>
+
+              <div className="flex flex-col gap-3 mt-auto">
+                <button
+                  className="btn btn-primary w-full"
+                  onClick={() => onNavigate('/admin')}
+                >
+                  Open Admin Console →
+                </button>
+                <div className="rounded-lg px-3 py-2" style={{ background: 'oklch(94% 0.007 248)' }}>
+                  <p className="text-xs" style={{ color: '#94a3b8' }}>
+                    Default login: <span className="font-mono-app" style={{ color: '#334155' }}>admin@pctcatalyst.com</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PCT Framework overview */}
+        <div className="card bg-base-100 shadow-sm border border-base-300">
+          <div className="card-body gap-2">
+            <h3 className="font-semibold text-base">The PCT Framework</h3>
+            <p className="text-sm" style={{ color: '#64748b' }}>
+              10 elements across 4 quadrants of leadership transformation.
+            </p>
+            <PCTFrameworkPanel />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mount ─────────────────────────────────────────────────────────────────────
+const rootEl = document.getElementById('root');
+const appRoot = ReactDOM.createRoot(rootEl);
+appRoot.render(<App />);

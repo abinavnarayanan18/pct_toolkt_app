@@ -1,15 +1,15 @@
-// Radar Chart using Chart.js — handles label layout automatically
+// ── PCT Pulse Radar — Chart.js implementation ──────────────────────────────
 function RadarChart({ scores, cohortScores, showCohort }) {
   const canvasRef = React.useRef(null);
-  const chartRef = React.useRef(null);
+  const chartRef  = React.useRef(null);
 
+  // Multi-line labels for Chart.js
   const labels = PCT_ELEMENTS.map(el => {
-    // Wrap long titles across multiple lines for Chart.js
     const words = el.title.split(' ');
     const lines = [];
     let line = '';
     for (const w of words) {
-      if ((line + ' ' + w).trim().length > 16 && line) {
+      if ((line + ' ' + w).trim().length > 15 && line) {
         lines.push(line.trim());
         line = w;
       } else {
@@ -24,26 +24,27 @@ function RadarChart({ scores, cohortScores, showCohort }) {
     if (!canvasRef.current) return;
     if (typeof Chart === 'undefined') return;
 
-    // Destroy previous instance
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
 
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    const tickColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)';
-    const labelColor = isDark ? '#c8cbc9' : '#3a3f3d';
-    const accentColor = '#1f6f5c';
+    const accentColor = 'oklch(41.8% 0.093 172.9)';
+    const accentHex   = '#0f766e';
+    const gridColor   = 'rgba(0,0,0,0.07)';
+    const tickColor   = 'rgba(0,0,0,0.25)';
+    const labelColor  = '#334155';
 
     const datasets = [
       {
         label: 'You',
-        data: scores && scores.length === 10 ? scores.map(s => s || 0) : Array(10).fill(0),
-        backgroundColor: 'rgba(31,111,92,0.15)',
-        borderColor: accentColor,
+        data: scores && scores.length === 10
+          ? scores.map(s => s || 0)
+          : Array(10).fill(0),
+        backgroundColor: 'rgba(15,118,110,0.12)',
+        borderColor: accentHex,
         borderWidth: 2.5,
-        pointBackgroundColor: accentColor,
+        pointBackgroundColor: accentHex,
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         pointRadius: 5,
@@ -56,10 +57,10 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         label: 'Cohort Avg',
         data: cohortScores.map(s => s || 0),
         backgroundColor: 'rgba(0,0,0,0)',
-        borderColor: 'rgba(100,100,100,0.5)',
+        borderColor: 'rgba(100,116,139,0.55)',
         borderWidth: 1.5,
         borderDash: [5, 3],
-        pointBackgroundColor: 'rgba(100,100,100,0.5)',
+        pointBackgroundColor: 'rgba(100,116,139,0.55)',
         pointBorderColor: '#fff',
         pointBorderWidth: 1.5,
         pointRadius: 4,
@@ -72,8 +73,8 @@ function RadarChart({ scores, cohortScores, showCohort }) {
       data: { labels, datasets },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        animation: { duration: 600, easing: 'easeInOutQuart' },
+        maintainAspectRatio: false,
+        animation: { duration: 500, easing: 'easeInOutQuart' },
         scales: {
           r: {
             min: 0,
@@ -85,38 +86,27 @@ function RadarChart({ scores, cohortScores, showCohort }) {
               font: { size: 10, family: "'JetBrains Mono', monospace" },
               callback: v => v === 0 ? '' : v,
             },
-            grid: {
-              color: gridColor,
-              lineWidth: 1,
-            },
-            angleLines: {
-              color: gridColor,
-              lineWidth: 1.5,
-            },
+            grid:        { color: gridColor, lineWidth: 1 },
+            angleLines:  { color: gridColor, lineWidth: 1.5 },
             pointLabels: {
               color: ctx => {
-                // PCT number line (index 0 in the array) gets accent color
-                return ctx.index !== undefined ? accentColor : labelColor;
-              },
-              font: ctx => {
-                // First line of each label (PCT N) is bold
+                // First line of each label (PCT N) is accent colour
                 const linesForPoint = labels[ctx.index] || [];
-                return {
-                  size: 11,
-                  weight: ctx.dataIndex === 0 ? '700' : '400',
-                  family: "'Inter', system-ui, sans-serif",
-                };
+                return accentHex;
               },
-              padding: 12,
-              callback: function(label) {
-                return label;
-              }
+              font: ctx => ({
+                size: 11,
+                weight: '600',
+                family: "'Inter', system-ui, sans-serif",
+              }),
+              padding: 14,
+              callback: label => label,
             },
           }
         },
         plugins: {
           legend: {
-            display: showCohort && cohortScores && cohortScores.length === 10,
+            display: !!(showCohort && cohortScores && cohortScores.length === 10),
             position: 'bottom',
             labels: {
               color: labelColor,
@@ -134,7 +124,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
               },
               label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}/7`,
             },
-            backgroundColor: 'rgba(26,29,28,0.9)',
+            backgroundColor: 'rgba(15,23,42,0.92)',
             titleFont: { size: 12, weight: '600' },
             bodyFont: { size: 12 },
             padding: 10,
@@ -157,21 +147,17 @@ function RadarChart({ scores, cohortScores, showCohort }) {
     : null;
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="w-full">
       {avg && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: 8,
-          fontFamily: 'var(--font-mono)',
-          fontSize: '.875rem',
-          color: 'var(--accent)',
-          fontWeight: 700
-        }}>
-          Overall avg: {avg}/7
+        <div className="flex justify-end mb-2">
+          <span className="font-mono-app text-sm font-bold" style={{ color: '#0f766e' }}>
+            Overall avg: {avg}/7
+          </span>
         </div>
       )}
-      <canvas ref={canvasRef} />
+      <div className="radar-canvas-wrap" style={{ height: 460 }}>
+        <canvas ref={canvasRef} />
+      </div>
     </div>
   );
 }
