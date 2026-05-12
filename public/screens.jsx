@@ -1,15 +1,22 @@
-// ── Participant Flow: 6 Steps ────────────────────────────────
+// ── Participant Flow: Identity + 5 Steps ─────────────────────
 
-function ParticipantApp({ cohortId }) {
+function ParticipantApp({ cohortId: urlCohortId }) {
   const [cohort, setCohort] = React.useState(null);
-  const [responseId, setResponseId] = React.useState(() => localStorage.getItem(`pct_resp_${cohortId}`));
+  const [effectiveCohortId, setEffectiveCohortId] = React.useState(urlCohortId || null);
+  const [responseId, setResponseId] = React.useState(() => {
+    if (urlCohortId) return localStorage.getItem(`pct_resp_${urlCohortId}`);
+    const storedRid = localStorage.getItem('pct_solo_resp');
+    return storedRid || null;
+  });
   const [response, setResponse] = React.useState(null);
   const [step, setStep] = React.useState(0);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!!urlCohortId);
   const [error, setError] = React.useState(null);
 
+  // Load cohort when effectiveCohortId is known
   React.useEffect(() => {
-    fetch(`/api/cohorts/${cohortId}`)
+    if (!effectiveCohortId) return;
+    fetch(`/api/cohorts/${effectiveCohortId}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) { setError(data.error); setLoading(false); return; }
@@ -17,36 +24,59 @@ function ParticipantApp({ cohortId }) {
         setLoading(false);
       })
       .catch(() => { setError('Could not load cohort'); setLoading(false); });
-  }, [cohortId]);
+  }, [effectiveCohortId]);
 
+  // Resume an existing response from localStorage
   React.useEffect(() => {
     if (!responseId) return;
     fetch(`/api/responses/${responseId}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) {
-          localStorage.removeItem(`pct_resp_${cohortId}`);
+          if (urlCohortId) localStorage.removeItem(`pct_resp_${urlCohortId}`);
+          else { localStorage.removeItem('pct_solo_resp'); localStorage.removeItem('pct_solo_cohort'); }
           setResponseId(null);
           return;
         }
         setResponse(data);
-        setStep(data.step || 0);
+        // Resume from furthest reached step (min 1 since identity is already done)
+        setStep(Math.max(1, data.step || 1));
+        if (!effectiveCohortId && data.cohort_id) setEffectiveCohortId(data.cohort_id);
       });
   }, [responseId]);
 
-  async function startSession(name, role) {
-    const r = await fetch(`/api/cohorts/${cohortId}/responses`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, role })
-    });
-    const data = await r.json();
-    if (data.error) { setError(data.error); return; }
-    localStorage.setItem(`pct_resp_${cohortId}`, data.id);
+  async function startSession(identity) {
+    const { anonymous, participantName, role, cohortId } = identity;
+    const targetCohortId = cohortId.trim() || urlCohortId || '';
+
+    let data;
+    if (targetCohortId) {
+      const r = await fetch(`/api/cohorts/${targetCohortId}/responses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: anonymous ? null : participantName, role, anonymous, participantName })
+      });
+      data = await r.json();
+      if (data.error) { setError(data.error); return; }
+      localStorage.setItem(`pct_resp_${targetCohortId}`, data.id);
+      setEffectiveCohortId(targetCohortId);
+    } else {
+      const r = await fetch('/api/responses/solo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantName, anonymous, role })
+      });
+      data = await r.json();
+      if (data.error) { setError(data.error); return; }
+      localStorage.setItem('pct_solo_resp', data.id);
+      localStorage.setItem('pct_solo_cohort', data.cohortId);
+      setEffectiveCohortId(data.cohortId);
+    }
+
     setResponseId(data.id);
     setResponse(data);
+    await autosave(data.id, { step: 1 });
     setStep(1);
-    await autosave(data.id, { step: 1, name, role });
   }
 
   async function autosave(id, fields) {
@@ -63,15 +93,14 @@ function ParticipantApp({ cohortId }) {
   }
 
   async function goToStep(newStep, extraFields) {
-    const fields = { step: newStep, ...extraFields };
-    await autosave(responseId, fields);
+    await autosave(responseId, { step: newStep, ...extraFields });
     setStep(newStep);
   }
 
   if (loading) return (
     <div className="loading-block">
       <div className="spinner spinner-lg" />
-      <span>Loading cohort…</span>
+      <span>Loading…</span>
     </div>
   );
 
@@ -81,40 +110,31 @@ function ParticipantApp({ cohortId }) {
     </div>
   );
 
-  if (!cohort) return null;
-
-  if (cohort.status === 'closed' && step < 6) return (
+  if (cohort && cohort.status === 'closed' && step < 5) return (
     <div className="page-center" style={{ paddingTop: 60 }}>
-      <div className="alert alert-warning">
-        This cohort is currently closed. Please contact your facilitator.
-      </div>
+      <div className="alert alert-warning">This cohort is currently closed. Please contact your facilitator.</div>
     </div>
   );
 
   const STEPS = [
-    { label: 'Start', n: 0 },
-    { label: 'Profile', n: 1 },
-    { label: 'PCT Pulse', n: 2 },
-    { label: 'Priority', n: 3 },
-    { label: 'Rank Shifts', n: 4 },
-    { label: 'Activators', n: 5 },
-    { label: 'Summary', n: 6 }
+    { label: 'Identity',   n: 0 },
+    { label: 'PCT Pulse',  n: 1 },
+    { label: 'Priority',   n: 2 },
+    { label: 'Rank Shifts',n: 3 },
+    { label: 'Activators', n: 4 },
+    { label: 'Summary',    n: 5 }
   ];
 
   return (
     <div className="app-shell">
-      {step > 0 && step < 6 && (
+      {step > 0 && step < 5 && (
         <div className="page-center" style={{ paddingBottom: 0 }}>
           <div className="stepper">
             {STEPS.slice(1).map((s, i) => (
               <React.Fragment key={s.n}>
-                {i > 0 && (
-                  <div className={`step-connector ${step > s.n ? 'done' : ''}`} />
-                )}
+                {i > 0 && <div className={`step-connector ${step > s.n ? 'done' : ''}`} />}
                 <div className={`step-item ${step === s.n ? 'active' : step > s.n ? 'done' : ''}`}>
-                  <div className="step-dot">
-                    {step > s.n ? '✓' : s.n}
-                  </div>
+                  <div className="step-dot">{step > s.n ? '✓' : s.n}</div>
                   <span className="step-label">{s.label}</span>
                 </div>
               </React.Fragment>
@@ -123,49 +143,42 @@ function ParticipantApp({ cohortId }) {
         </div>
       )}
 
-      {step === 0 && (
-        <Step0Welcome cohort={cohort} onStart={startSession} />
-      )}
+      {step === 0 && <Step0Identity urlCohortId={urlCohortId} onComplete={startSession} />}
       {step === 1 && (
-        <Step1Profile
+        <Step1Pulse
           response={response}
-          onNext={(name, role) => goToStep(2, { name, role })}
-        />
-      )}
-      {step === 2 && (
-        <Step2Pulse
-          response={response}
-          onBack={() => goToStep(1)}
-          onNext={(scores) => goToStep(3, { scores: JSON.stringify(scores) })}
+          onBack={() => setStep(0)}
+          onNext={(scores) => goToStep(2, { scores: JSON.stringify(scores) })}
           autosave={(scores) => autosave(responseId, { scores: JSON.stringify(scores) })}
         />
       )}
+      {step === 2 && (
+        <Step2Priority
+          response={response}
+          onBack={() => goToStep(1)}
+          onNext={(priority) => goToStep(3, { priority })}
+        />
+      )}
       {step === 3 && (
-        <Step3Priority
+        <Step3Ranking
           response={response}
           onBack={() => goToStep(2)}
-          onNext={(priority) => goToStep(4, { priority })}
+          onNext={(ranking) => goToStep(4, { ranking: JSON.stringify(ranking) })}
         />
       )}
       {step === 4 && (
-        <Step4Ranking
+        <Step4Activators
           response={response}
           onBack={() => goToStep(3)}
-          onNext={(ranking) => goToStep(5, { ranking: JSON.stringify(ranking) })}
-        />
-      )}
-      {step === 5 && (
-        <Step5Activators
-          response={response}
-          onBack={() => goToStep(4)}
-          onNext={(activators) => goToStep(6, { activators: JSON.stringify(activators) })}
+          onNext={(activators) => goToStep(5, { activators: JSON.stringify(activators) })}
           autosave={(activators) => autosave(responseId, { activators: JSON.stringify(activators) })}
         />
       )}
-      {step === 6 && (
-        <Step6Summary
+      {step === 5 && (
+        <Step5Summary
           response={response}
           cohort={cohort}
+          cohortId={effectiveCohortId}
           responseId={responseId}
         />
       )}
@@ -173,112 +186,133 @@ function ParticipantApp({ cohortId }) {
   );
 }
 
-// ── Step 0: Welcome ──────────────────────────────────────────
-function Step0Welcome({ cohort, onStart }) {
-  const [name, setName] = React.useState('');
-  const [role, setRole] = React.useState('');
+// ── Step 0: Identity ─────────────────────────────────────────
+function Step0Identity({ urlCohortId, onComplete }) {
+  const [anonymous, setAnonymous] = React.useState(false);
+  const [participantName, setParticipantName] = React.useState('');
+  const [role, setRole] = React.useState('leadership');
+  const [cohortId, setCohortId] = React.useState(urlCohortId || '');
   const [loading, setLoading] = React.useState(false);
 
-  async function handleStart(e) {
-    e.preventDefault();
-    if (!name.trim()) return;
+  const hasName = participantName.trim().length > 0;
+  const hasCohortId = cohortId.trim().length > 0;
+  const canContinue = anonymous || hasName;
+
+  let cohortHint = '';
+  if (hasCohortId) cohortHint = "You're joining an existing cohort";
+  else if (!anonymous && hasName) cohortHint = `A session will be created in your name`;
+  else cohortHint = "You'll be part of an anonymous session";
+
+  async function handleStart() {
+    if (!canContinue || loading) return;
     setLoading(true);
-    await onStart(name.trim(), role.trim());
+    await onComplete({ anonymous, participantName: anonymous ? '' : participantName.trim(), role, cohortId: cohortId.trim() });
     setLoading(false);
   }
 
   return (
-    <div className="page-center" style={{ paddingTop: 60, maxWidth: 600 }}>
+    <div className="page-center" style={{ paddingTop: 60, maxWidth: 560 }}>
       <div className="card card-lg">
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div className="brand-mark" style={{ width: 56, height: 56, fontSize: '1.25rem', margin: '0 auto 16px' }}>PCT</div>
           <h1 className="display" style={{ fontSize: '2rem', marginBottom: 8 }}>PCT Catalyst</h1>
           <p className="muted">Leadership Transformation Assessment</p>
-          {cohort.description && (
-            <p style={{ marginTop: 12, fontSize: '.9375rem', color: 'var(--ink-2)' }}>{cohort.description}</p>
+        </div>
+
+        {/* Anonymous / Name toggle */}
+        <div className="form-group" style={{ marginBottom: 20 }}>
+          <label className="form-label">How would you like to participate?</label>
+          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            <button
+              type="button"
+              className={`btn ${!anonymous ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1 }}
+              onClick={() => setAnonymous(false)}
+            >
+              Provide My Name
+            </button>
+            <button
+              type="button"
+              className={`btn ${anonymous ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1 }}
+              onClick={() => setAnonymous(true)}
+            >
+              Fill Anonymously
+            </button>
+          </div>
+          {!anonymous && (
+            <input
+              className="form-input"
+              style={{ marginTop: 10 }}
+              value={participantName}
+              onChange={e => setParticipantName(e.target.value)}
+              placeholder="Your full name"
+              autoFocus
+            />
           )}
         </div>
 
-        <div className="alert alert-info" style={{ marginBottom: 24 }}>
-          <strong>Cohort:</strong> {cohort.name}
-          {cohort.sponsor && <> · <strong>Sponsor:</strong> {cohort.sponsor}</>}
+        {/* Role selector */}
+        <div className="form-group" style={{ marginBottom: 20 }}>
+          <label className="form-label">What is your role in this organization?</label>
+          <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            <button
+              type="button"
+              className={`btn ${role === 'leadership' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1 }}
+              onClick={() => setRole('leadership')}
+            >
+              I am in Leadership
+            </button>
+            <button
+              type="button"
+              className={`btn ${role === 'org' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1 }}
+              onClick={() => setRole('org')}
+            >
+              I am in the Organization
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleStart} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="form-group">
-            <label className="form-label">Your Full Name *</label>
-            <input
-              className="form-input"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. Jane Smith"
-              required
-              autoFocus
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Your Role / Title</label>
-            <input
-              className="form-input"
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              placeholder="e.g. VP of Engineering"
-            />
-          </div>
+        {/* Cohort ID */}
+        <div className="form-group" style={{ marginBottom: 24 }}>
+          <label className="form-label">Cohort ID{!urlCohortId ? ' (optional)' : ''}</label>
+          <input
+            className="form-input"
+            value={cohortId}
+            onChange={e => setCohortId(e.target.value)}
+            placeholder={urlCohortId ? '' : 'Leave blank for a personal session'}
+            readOnly={!!urlCohortId}
+          />
+          <p className="form-hint" style={{ marginTop: 6 }}>{cohortHint}</p>
+        </div>
 
-          <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius)', padding: 16, marginTop: 8 }}>
-            <p className="small muted" style={{ lineHeight: 1.6 }}>
-              This assessment takes approximately 15–20 minutes. You'll rate your organization's
-              leadership behaviors, select a priority area, rank transformation shifts, and define
-              specific action commitments. Your responses are saved automatically.
-            </p>
-          </div>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius)', padding: 14, marginBottom: 20 }}>
+          <p className="small muted" style={{ lineHeight: 1.6 }}>
+            This assessment takes approximately 15–20 minutes. You'll rate leadership behaviors,
+            select a priority area, rank transformation shifts, and define action commitments.
+            Your responses are saved automatically.
+          </p>
+        </div>
 
-          <button type="submit" className="btn btn-primary btn-lg" disabled={loading || !name.trim()}>
-            {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Starting…</> : 'Begin Assessment →'}
-          </button>
-        </form>
+        <button
+          className="btn btn-primary btn-lg"
+          style={{ width: '100%' }}
+          disabled={loading || !canContinue}
+          onClick={handleStart}
+        >
+          {loading
+            ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Starting…</>
+            : 'Begin Assessment →'}
+        </button>
       </div>
     </div>
   );
 }
 
-// ── Step 1: Profile confirmation ─────────────────────────────
-function Step1Profile({ response, onNext }) {
-  const [name, setName] = React.useState(response?.name || '');
-  const [role, setRole] = React.useState(response?.role || '');
-
-  return (
-    <div className="page-center" style={{ paddingTop: 40, maxWidth: 600 }}>
-      <div className="card">
-        <div className="card-header">
-          <h2>Confirm Your Profile</h2>
-          <span className="label">Step 1 of 5</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-          <div className="form-group">
-            <label className="form-label">Full Name</label>
-            <input className="form-input" value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Role / Title</label>
-            <input className="form-input" value={role} onChange={e => setRole(e.target.value)} />
-          </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => onNext(name, role)}
-            disabled={!name.trim()}
-          >
-            Continue to PCT Pulse →
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Step 2: PCT Pulse (10 sliders / likert) ──────────────────
-function Step2Pulse({ response, onBack, onNext, autosave }) {
+// ── Step 1: PCT Pulse (10 likert) ────────────────────────────
+function Step1Pulse({ response, onBack, onNext, autosave }) {
   const [scores, setScores] = React.useState(() => {
     try { return JSON.parse(response?.scores || '[]'); } catch { return []; }
   });
@@ -304,30 +338,18 @@ function Step2Pulse({ response, onBack, onNext, autosave }) {
           <h2>PCT Pulse Check</h2>
           <p className="muted">Rate how strongly you agree with each statement about your organization's leaders.</p>
         </div>
-        <div className="badge badge-gray">
-          {answeredCount}/10 answered
-        </div>
+        <div className="badge badge-gray">{answeredCount}/10 answered</div>
       </div>
 
       <PDFVisual concept="pulse-intro" style={{ marginBottom: 16 }} />
 
       {PCT_ELEMENTS.map((el, i) => (
-        <PulseCard
-          key={el.n}
-          element={el}
-          index={i}
-          value={filled[i]}
-          onChange={val => setScore(i, val)}
-        />
+        <PulseCard key={el.n} element={el} index={i} value={filled[i]} onChange={val => setScore(i, val)} />
       ))}
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button className="btn btn-secondary" onClick={onBack}>← Back</button>
-        <button
-          className="btn btn-primary"
-          onClick={() => onNext(filled)}
-          disabled={!allAnswered}
-        >
+        <button className="btn btn-primary" onClick={() => onNext(filled)} disabled={!allAnswered}>
           {allAnswered ? 'Continue to Priority →' : `Answer all 10 (${10 - answeredCount} remaining)`}
         </button>
       </div>
@@ -347,19 +369,12 @@ function PulseCard({ element, index, value, onChange }) {
         <span className={`badge ${quadrantClass}`}>{element.quadrant}</span>
       </div>
       <p className="pulse-statement">"{element.pulse}"</p>
-
       <div className="likert-scale">
         {[1,2,3,4,5,6,7].map(v => (
-          <button
-            key={v}
-            className={`likert-btn ${value === v ? 'selected' : ''}`}
-            onClick={() => onChange(v)}
-          >
-            {v}
-          </button>
+          <button key={v} className={`likert-btn ${value === v ? 'selected' : ''}`} onClick={() => onChange(v)}>{v}</button>
         ))}
       </div>
-      <div className="likert-labels">
+      <div className="likert-footer">
         <span>Strongly Disagree</span>
         <span>Strongly Agree</span>
       </div>
@@ -367,8 +382,8 @@ function PulseCard({ element, index, value, onChange }) {
   );
 }
 
-// ── Step 3: Priority element ─────────────────────────────────
-function Step3Priority({ response, onBack, onNext }) {
+// ── Step 2: Priority element ─────────────────────────────────
+function Step2Priority({ response, onBack, onNext }) {
   const [selected, setSelected] = React.useState(
     response?.priority !== null && response?.priority !== undefined ? response.priority : null
   );
@@ -385,11 +400,7 @@ function Step3Priority({ response, onBack, onNext }) {
 
       <div className="priority-grid">
         {PCT_ELEMENTS.map((el, i) => (
-          <div
-            key={el.n}
-            className={`priority-card ${selected === i ? 'selected' : ''}`}
-            onClick={() => setSelected(i)}
-          >
+          <div key={el.n} className={`priority-card ${selected === i ? 'selected' : ''}`} onClick={() => setSelected(i)}>
             <div className="priority-card-num">PCT {el.n}</div>
             <div className="priority-card-title">{el.title}</div>
             <div className="priority-card-quadrant">
@@ -411,11 +422,7 @@ function Step3Priority({ response, onBack, onNext }) {
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button className="btn btn-secondary" onClick={onBack}>← Back</button>
-        <button
-          className="btn btn-primary"
-          onClick={() => onNext(selected)}
-          disabled={selected === null}
-        >
+        <button className="btn btn-primary" onClick={() => onNext(selected)} disabled={selected === null}>
           Continue to Rank Shifts →
         </button>
       </div>
@@ -423,8 +430,8 @@ function Step3Priority({ response, onBack, onNext }) {
   );
 }
 
-// ── Step 4: Rank Shifts (drag-and-drop) ──────────────────────
-function Step4Ranking({ response, onBack, onNext }) {
+// ── Step 3: Rank Shifts (drag-and-drop) ──────────────────────
+function Step3Ranking({ response, onBack, onNext }) {
   const priority = response?.priority;
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
   const shifts = priorityEl ? priorityEl.shifts : [];
@@ -440,24 +447,16 @@ function Step4Ranking({ response, onBack, onNext }) {
   const [dragIdx, setDragIdx] = React.useState(null);
   const [overIdx, setOverIdx] = React.useState(null);
 
-  if (!priorityEl) {
-    return (
-      <div className="page-center" style={{ paddingTop: 40 }}>
-        <div className="alert alert-error">No priority element selected. Please go back.</div>
-        <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={onBack}>← Back</button>
-      </div>
-    );
-  }
+  if (!priorityEl) return (
+    <div className="page-center" style={{ paddingTop: 40 }}>
+      <div className="alert alert-error">No priority element selected. Please go back.</div>
+      <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={onBack}>← Back</button>
+    </div>
+  );
 
-  function onDragStart(e, i) {
-    setDragIdx(i);
-    e.dataTransfer.effectAllowed = 'move';
-  }
-
-  function onDragOver(e, i) {
-    e.preventDefault();
-    setOverIdx(i);
-  }
+  function onDragStart(e, i) { setDragIdx(i); e.dataTransfer.effectAllowed = 'move'; }
+  function onDragOver(e, i)  { e.preventDefault(); setOverIdx(i); }
+  function onDragEnd()       { setDragIdx(null); setOverIdx(null); }
 
   function onDrop(e, i) {
     e.preventDefault();
@@ -470,24 +469,8 @@ function Step4Ranking({ response, onBack, onNext }) {
     setOverIdx(null);
   }
 
-  function onDragEnd() {
-    setDragIdx(null);
-    setOverIdx(null);
-  }
-
-  function moveUp(i) {
-    if (i === 0) return;
-    const next = [...items];
-    [next[i - 1], next[i]] = [next[i], next[i - 1]];
-    setItems(next);
-  }
-
-  function moveDown(i) {
-    if (i === items.length - 1) return;
-    const next = [...items];
-    [next[i], next[i + 1]] = [next[i + 1], next[i]];
-    setItems(next);
-  }
+  function moveUp(i)   { if (i === 0) return; const n = [...items]; [n[i-1], n[i]] = [n[i], n[i-1]]; setItems(n); }
+  function moveDown(i) { if (i === items.length - 1) return; const n = [...items]; [n[i], n[i+1]] = [n[i+1], n[i]]; setItems(n); }
 
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 680 }}>
@@ -529,20 +512,8 @@ function Step4Ranking({ response, onBack, onNext }) {
                 <p className="small muted" style={{ marginTop: 2, lineHeight: 1.4 }}>{shift.description}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-                <button
-                  className="btn-ghost btn btn-sm"
-                  style={{ padding: '2px 6px' }}
-                  onClick={() => moveUp(rankPos)}
-                  disabled={rankPos === 0}
-                  title="Move up"
-                >↑</button>
-                <button
-                  className="btn-ghost btn btn-sm"
-                  style={{ padding: '2px 6px' }}
-                  onClick={() => moveDown(rankPos)}
-                  disabled={rankPos === items.length - 1}
-                  title="Move down"
-                >↓</button>
+                <button className="btn-ghost btn btn-sm" style={{ padding: '2px 6px' }} onClick={() => moveUp(rankPos)} disabled={rankPos === 0} title="Move up">↑</button>
+                <button className="btn-ghost btn btn-sm" style={{ padding: '2px 6px' }} onClick={() => moveDown(rankPos)} disabled={rankPos === items.length - 1} title="Move down">↓</button>
               </div>
             </div>
           );
@@ -551,16 +522,14 @@ function Step4Ranking({ response, onBack, onNext }) {
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button className="btn btn-secondary" onClick={onBack}>← Back</button>
-        <button className="btn btn-primary" onClick={() => onNext(items)}>
-          Continue to Activators →
-        </button>
+        <button className="btn btn-primary" onClick={() => onNext(items)}>Continue to Activators →</button>
       </div>
     </div>
   );
 }
 
-// ── Step 5: MBD Activators ───────────────────────────────────
-function Step5Activators({ response, onBack, onNext, autosave }) {
+// ── Step 4: MBD Activators ───────────────────────────────────
+function Step4Activators({ response, onBack, onNext, autosave }) {
   const priority = response?.priority;
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
 
@@ -582,25 +551,19 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
   function updateMBD(shiftIdx, field, value, idx) {
     const next = { ...activators };
     const cur = next[shiftIdx] ? { ...next[shiftIdx] } : emptyMBD();
-    if (idx !== undefined) {
-      cur[field] = [...(cur[field] || ['', '', ''])];
-      cur[field][idx] = value;
-    } else {
-      cur[field] = value;
-    }
+    if (idx !== undefined) { cur[field] = [...(cur[field] || ['', '', ''])]; cur[field][idx] = value; }
+    else { cur[field] = value; }
     next[shiftIdx] = cur;
     setActivators(next);
     autosave(next);
   }
 
-  if (!priorityEl || ranking.length === 0) {
-    return (
-      <div className="page-center" style={{ paddingTop: 40 }}>
-        <div className="alert alert-error">Priority element or ranking not found. Please go back.</div>
-        <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={onBack}>← Back</button>
-      </div>
-    );
-  }
+  if (!priorityEl || ranking.length === 0) return (
+    <div className="page-center" style={{ paddingTop: 40 }}>
+      <div className="alert alert-error">Priority element or ranking not found. Please go back.</div>
+      <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={onBack}>← Back</button>
+    </div>
+  );
 
   const topShiftIdx = ranking[0];
   const topMBD = activators[topShiftIdx] || {};
@@ -639,11 +602,7 @@ function Step5Activators({ response, onBack, onNext, autosave }) {
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button className="btn btn-secondary" onClick={onBack}>← Back</button>
-        <button
-          className="btn btn-primary"
-          onClick={() => onNext(activators)}
-          disabled={!isComplete}
-        >
+        <button className="btn btn-primary" onClick={() => onNext(activators)} disabled={!isComplete}>
           {isComplete ? 'View My Summary →' : "Complete the top shift's commitment first"}
         </button>
       </div>
@@ -659,10 +618,7 @@ function ShiftActivatorCard({ rank, shift, mbd, isTopRanked, onChange }) {
 
   return (
     <div className="card" style={{ marginBottom: 14, borderLeft: isTopRanked ? '3px solid var(--accent)' : undefined }}>
-      <div
-        onClick={() => setExpanded(!expanded)}
-        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}
-      >
+      <div onClick={() => setExpanded(!expanded)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 24, flexShrink: 0 }}>#{rank}</span>
         <div style={{ flex: 1 }}>
           <span className="small" style={{ fontWeight: 600 }}>
@@ -670,68 +626,33 @@ function ShiftActivatorCard({ rank, shift, mbd, isTopRanked, onChange }) {
             <span className="muted" style={{ fontWeight: 400, margin: '0 5px' }}>over</span>
             {under}
           </span>
-          {isTopRanked && (
-            <span className="badge badge-blue" style={{ marginLeft: 8, fontSize: '.6rem', verticalAlign: 'middle' }}>Primary Focus</span>
-          )}
+          {isTopRanked && <span className="badge badge-blue" style={{ marginLeft: 8, fontSize: '.6rem', verticalAlign: 'middle' }}>Primary Focus</span>}
         </div>
         <span className={`chevron ${expanded ? 'open' : ''}`} style={{ flexShrink: 0 }}>▶</span>
       </div>
 
       {expanded && (
         <div style={{ marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-          {shift.description && (
-            <p className="small muted" style={{ marginBottom: 14 }}>{shift.description}</p>
-          )}
-          <ActivatorGroup
-            title="MORE OF"
-            subtitle="What will you start doing more of?"
-            values={mbd.moreOf || ['', '', '']}
-            onChange={(val, idx) => onChange('moreOf', val, idx)}
-          />
-          <ActivatorGroup
-            title="BETTER"
-            subtitle="What will you do more skillfully?"
-            values={mbd.better || ['', '', '']}
-            onChange={(val, idx) => onChange('better', val, idx)}
-          />
-          <ActivatorGroup
-            title="DIFFERENTLY"
-            subtitle="What will you change or stop doing?"
-            values={mbd.differently || ['', '', '']}
-            onChange={(val, idx) => onChange('differently', val, idx)}
-          />
+          {shift.description && <p className="small muted" style={{ marginBottom: 14 }}>{shift.description}</p>}
+          <ActivatorGroup title="MORE OF" subtitle="What will you start doing more of?" values={mbd.moreOf || ['', '', '']} onChange={(val, idx) => onChange('moreOf', val, idx)} />
+          <ActivatorGroup title="BETTER"  subtitle="What will you do more skillfully?"  values={mbd.better  || ['', '', '']} onChange={(val, idx) => onChange('better',  val, idx)} />
+          <ActivatorGroup title="DIFFERENTLY" subtitle="What will you change or stop doing?" values={mbd.differently || ['', '', '']} onChange={(val, idx) => onChange('differently', val, idx)} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
             <div className="form-group">
               <label className="form-label">
                 I will know this shift is complete when…
                 {isTopRanked && <span style={{ color: 'var(--accent)', marginLeft: 4 }}>*</span>}
               </label>
-              <textarea
-                className="form-textarea"
-                value={mbd.completeWhen || ''}
-                onChange={e => onChange('completeWhen', e.target.value)}
-                placeholder="Describe a specific, observable behavior or outcome that signals success"
-                rows={3}
-              />
+              <textarea className="form-textarea" value={mbd.completeWhen || ''} onChange={e => onChange('completeWhen', e.target.value)} placeholder="Describe a specific, observable behavior or outcome that signals success" rows={3} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
                 <label className="form-label">Accountability Partner</label>
-                <input
-                  className="form-input"
-                  value={mbd.owner || ''}
-                  onChange={e => onChange('owner', e.target.value)}
-                  placeholder="Who will hold you accountable?"
-                />
+                <input className="form-input" value={mbd.owner || ''} onChange={e => onChange('owner', e.target.value)} placeholder="Who will hold you accountable?" />
               </div>
               <div className="form-group">
                 <label className="form-label">Target Date</label>
-                <input
-                  className="form-input"
-                  type="date"
-                  value={mbd.due || ''}
-                  onChange={e => onChange('due', e.target.value)}
-                />
+                <input className="form-input" type="date" value={mbd.due || ''} onChange={e => onChange('due', e.target.value)} />
               </div>
             </div>
           </div>
@@ -750,12 +671,7 @@ function ActivatorGroup({ title, subtitle, values, onChange }) {
         {[0, 1, 2].map(i => (
           <div key={i} className="activator-input-row">
             <div className="activator-num">{i + 1}</div>
-            <input
-              className="form-input"
-              value={values[i] || ''}
-              onChange={e => onChange(e.target.value, i)}
-              placeholder={`Activator ${i + 1}`}
-            />
+            <input className="form-input" value={values[i] || ''} onChange={e => onChange(e.target.value, i)} placeholder={`Activator ${i + 1}`} />
           </div>
         ))}
       </div>
@@ -763,16 +679,21 @@ function ActivatorGroup({ title, subtitle, values, onChange }) {
   );
 }
 
-// ── Step 6: Summary ──────────────────────────────────────────
-function Step6Summary({ response, cohort, responseId }) {
+// ── Step 5: Summary ──────────────────────────────────────────
+function Step5Summary({ response, cohort, cohortId, responseId }) {
   const [submitted, setSubmitted] = React.useState(!!response?.submitted_at);
   const [aiSummary, setAiSummary] = React.useState(() => {
     try { return response?.ai_summary ? JSON.parse(response.ai_summary) : null; } catch { return null; }
   });
   const [aiLoading, setAiLoading] = React.useState(false);
   const [aiError, setAiError] = React.useState(null);
-  const [radarData, setRadarData] = React.useState(null);
   const [aiAvailable, setAiAvailable] = React.useState(null);
+
+  // Radar state — cohort leadership vs org
+  const [leadershipRadar, setLeadershipRadar] = React.useState(null);
+  const [orgRadar, setOrgRadar] = React.useState(null);
+  const [radarAudience, setRadarAudience] = React.useState('leadership_only');
+  const [radarReleased, setRadarReleased] = React.useState(false);
 
   const scores = React.useMemo(() => {
     try { return JSON.parse(response?.scores || '[]'); } catch { return []; }
@@ -789,8 +710,8 @@ function Step6Summary({ response, cohort, responseId }) {
   const priority = response?.priority;
   const priorityEl = priority !== null && priority !== undefined ? PCT_ELEMENTS[priority] : null;
 
+  // Auto-submit
   React.useEffect(() => {
-    // Auto-submit if not yet submitted
     if (!submitted) {
       fetch(`/api/responses/${responseId}/submit`, { method: 'POST' })
         .then(r => r.json())
@@ -798,26 +719,29 @@ function Step6Summary({ response, cohort, responseId }) {
     }
   }, []);
 
+  // Load radar data
   React.useEffect(() => {
-    // Load cohort radar if released
-    fetch(`/api/cohorts/${cohort.id}/radar`)
+    if (!cohortId) return;
+    fetch(`/api/cohorts/${cohortId}/radar`)
       .then(r => r.json())
       .then(data => {
-        if (data.released && data.data) setRadarData(data.data);
+        setRadarReleased(!!data.released);
+        setRadarAudience(data.audience || 'leadership_only');
+        if (data.released) {
+          setLeadershipRadar(data.leadership);
+          setOrgRadar(data.org);
+        }
       });
-  }, []);
+  }, [cohortId]);
 
   React.useEffect(() => {
     fetch('/api/ai/status').then(r => r.json()).then(data => setAiAvailable(!!data.available));
   }, []);
 
   React.useEffect(() => {
-    // Only auto-trigger if this specific response doesn't already have an AI summary
-    // and AI is available — never trigger based on cohort release state
-    if (aiAvailable === true && !aiSummary && !aiLoading && submitted) {
-      triggerAI();
-    }
+    if (aiAvailable === true && !aiSummary && !aiLoading && submitted) triggerAI();
   }, [aiAvailable, submitted]);
+
   async function triggerAI() {
     setAiLoading(true);
     setAiError(null);
@@ -826,9 +750,7 @@ function Step6Summary({ response, cohort, responseId }) {
       const data = await r.json();
       if (data.error) { setAiError(data.error); setAiLoading(false); return; }
       setAiSummary(data);
-    } catch (e) {
-      setAiError('Could not generate analysis. Please try again.');
-    }
+    } catch { setAiError('Could not generate analysis. Please try again.'); }
     setAiLoading(false);
   }
 
@@ -836,53 +758,65 @@ function Step6Summary({ response, cohort, responseId }) {
     ? (scores.filter(Boolean).reduce((a, b) => a + b, 0) / scores.filter(Boolean).length).toFixed(1)
     : null;
 
+  // What to show on the radar
+  const radarScores  = radarReleased && leadershipRadar ? leadershipRadar : scores;
+  const radarOrgData = radarReleased ? orgRadar : null;
+
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 760 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: '1.75rem' }}>
-            Your PCT Summary
-          </h1>
-          <p className="muted">{response?.name} · {cohort.name}</p>
+          <h1 style={{ fontFamily: 'var(--f-head)', fontWeight: 700, fontSize: '1.75rem' }}>Your PCT Summary</h1>
+          <p className="muted">{response?.participant_name || response?.name} · {cohort?.name}</p>
         </div>
-        <button className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>
-          🖨 Print
-        </button>
+        <button className="btn btn-secondary btn-sm no-print" onClick={() => window.print()}>🖨 Print</button>
       </div>
 
       {/* Radar Chart */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header">
           <h3>PCT Pulse Radar</h3>
-          {avg && <span className="score-num" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Overall avg: {avg}/7</span>}
+          {radarReleased
+            ? <span className="badge badge-green">Cohort averages shown</span>
+            : avg
+              ? <span className="score-num" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Overall avg: {avg}/7</span>
+              : null}
         </div>
         <div style={{ padding: '8px 0', minHeight: 480 }}>
           <RadarChart
-            scores={scores}
-            cohortScores={radarData}
-            showCohort={!!radarData}
+            scores={radarScores}
+            cohortScores={null}
+            showCohort={false}
+            orgScores={radarOrgData}
           />
         </div>
       </div>
-      {/* Score breakdown */}
+
+      {/* Element Scores */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header"><h3>Element Scores</h3></div>
+        <div className="card-header"><h3>Your Element Scores</h3></div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
           {PCT_ELEMENTS.map((el, i) => (
             <div key={el.n} className="score-row">
-              <div className="score-label">
-                <strong>PCT {el.n}</strong> {el.title}
-              </div>
-              <div className="score-bar">
-                <div className="score-bar-fill" style={{ width: `${((scores[i] || 0) / 7) * 100}%` }} />
-              </div>
+              <div className="score-label"><strong>PCT {el.n}</strong> {el.title}</div>
+              <div className="score-bar"><div className="score-bar-fill" style={{ width: `${((scores[i] || 0) / 7) * 100}%` }} /></div>
               <div className="score-num">{scores[i] ?? '–'}/7</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Priority + per-shift MBD */}
+      {/* PCT Priority Rankings */}
+      {cohortId && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header"><h3>PCT Priority Rankings</h3></div>
+          <div style={{ padding: '8px 0' }}>
+            <PCTRankingsTable cohortId={cohortId} audience={radarAudience} />
+          </div>
+        </div>
+      )}
+
+      {/* Priority + Activation Plan */}
       {priorityEl && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header">
@@ -912,7 +846,6 @@ function Step6Summary({ response, cohort, responseId }) {
                     </span>
                     {isTop && <span className="badge badge-blue" style={{ fontSize: '.6rem' }}>Primary Focus</span>}
                   </div>
-
                   {isTop && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
                       {['moreOf', 'better', 'differently'].map(field => (
@@ -920,17 +853,12 @@ function Step6Summary({ response, cohort, responseId }) {
                           <div className="label" style={{ marginBottom: 5, fontSize: '.65rem' }}>
                             {field === 'moreOf' ? 'More Of' : field === 'better' ? 'Better' : 'Differently'}
                           </div>
-                          {(shiftMBD[field] || []).filter(Boolean).map((v, i) => (
-                            <p key={i} className="small" style={{ marginBottom: 2 }}>• {v}</p>
-                          ))}
-                          {!(shiftMBD[field] || []).filter(Boolean).length && (
-                            <p className="small muted">—</p>
-                          )}
+                          {(shiftMBD[field] || []).filter(Boolean).map((v, i) => <p key={i} className="small" style={{ marginBottom: 2 }}>• {v}</p>)}
+                          {!(shiftMBD[field] || []).filter(Boolean).length && <p className="small muted">—</p>}
                         </div>
                       ))}
                     </div>
                   )}
-
                   {shiftMBD.completeWhen && (
                     <div style={{ padding: 10, background: 'var(--accent-tint)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent)' }}>
                       <div className="label" style={{ marginBottom: 4, fontSize: '.65rem' }}>Complete When</div>
@@ -951,33 +879,7 @@ function Step6Summary({ response, cohort, responseId }) {
         </div>
       )}
 
-      {/* Ranked shifts */}
-      {ranking.length > 0 && priorityEl && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><h3>Ranked Shifts</h3></div>
-          <div style={{ marginTop: 8 }}>
-            {ranking.map((shiftIdx, rank) => {
-              const shift = priorityEl.shifts[shiftIdx];
-              if (!shift) return null;
-              const parts = shift.label.split(' over ');
-              const over = parts[0];
-              const under = parts.slice(1).join(' over ');
-              return (
-                <div key={shiftIdx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 24 }}>#{rank + 1}</span>
-                  <span className="small">
-                    <strong>{over}</strong>
-                    <span className="muted" style={{ margin: '0 4px' }}>over</span>
-                    {under}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* AI Analysis Section */}
+      {/* AI Analysis */}
       <div className="ai-card" style={{ marginBottom: 24 }}>
         <div className="ai-card-header">
           <div>✦</div>
@@ -986,13 +888,7 @@ function Step6Summary({ response, cohort, responseId }) {
             <p style={{ fontSize: '.75rem', opacity: .8, marginTop: 2 }}>Powered by Claude · PCT Methodology</p>
           </div>
         </div>
-
-        {aiAvailable === false && (
-          <div style={{ padding: 20 }}>
-            <p className="muted">AI analysis unavailable — contact your administrator</p>
-          </div>
-        )}
-
+        {aiAvailable === false && <div style={{ padding: 20 }}><p className="muted">AI analysis unavailable — contact your administrator</p></div>}
         {aiAvailable !== false && aiLoading && (
           <div className="loading-block">
             <div className="spinner spinner-lg" />
@@ -1000,32 +896,290 @@ function Step6Summary({ response, cohort, responseId }) {
             <p className="small muted">This takes about 10–20 seconds</p>
           </div>
         )}
-
         {aiAvailable !== false && aiError && !aiLoading && (
           <div style={{ padding: 20 }}>
             <div className="alert alert-error" style={{ marginBottom: 12 }}>{aiError}</div>
             <button className="btn btn-primary btn-sm" onClick={triggerAI}>Try Again</button>
           </div>
         )}
-
         {aiAvailable !== false && aiSummary && !aiLoading && (
           <AISummaryDisplay summary={aiSummary} onRegenerate={triggerAI} />
         )}
+      </div>
+
+      {/* Thematic Summary (only when cohort avg is released) */}
+      {cohortId && radarReleased && <ThematicSummary cohortId={cohortId} />}
+    </div>
+  );
+}
+
+// ── PCT Priority Rankings Table ───────────────────────────────
+function PCTRankingsTable({ cohortId, audience }) {
+  const [rankings, setRankings] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [forbidden, setForbidden] = React.useState(false);
+  const [expandedRow, setExpandedRow] = React.useState(null);
+  const [mbdInputs, setMbdInputs] = React.useState({});
+
+  React.useEffect(() => {
+    fetch(`/api/cohorts/${cohortId}/ranked-pcts`)
+      .then(r => {
+        if (r.status === 403) { setForbidden(true); setLoading(false); return null; }
+        return r.json();
+      })
+      .then(data => {
+        if (data) setRankings(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [cohortId]);
+
+  function updateMbd(elementIndex, shiftPos, field, inputIdx, value) {
+    setMbdInputs(prev => {
+      const key = `${elementIndex}-${shiftPos}`;
+      const cur = prev[key] || { moreOf: ['','',''], better: ['','',''], differently: ['','',''], completeWhen: '' };
+      const updated = { ...cur };
+      if (inputIdx !== undefined) {
+        updated[field] = [...(cur[field] || ['','',''])];
+        updated[field][inputIdx] = value;
+      } else {
+        updated[field] = value;
+      }
+      return { ...prev, [key]: updated };
+    });
+  }
+
+  if (loading) return <div className="loading-block" style={{ padding: 24 }}><div className="spinner" /></div>;
+
+  if (forbidden) return (
+    <div className="alert alert-info" style={{ margin: 12, textAlign: 'center' }}>
+      Rankings will appear once the facilitator releases results.
+    </div>
+  );
+
+  if (!rankings || !rankings.length) return (
+    <p className="muted" style={{ padding: 16, textAlign: 'center' }}>No ranking data yet.</p>
+  );
+
+  const isMixed = audience === 'mixed';
+
+  return (
+    <div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>PCT Element</th>
+              {isMixed ? (
+                <>
+                  <th>Leadership Avg</th>
+                  <th>Org Avg</th>
+                  <th>Delta</th>
+                  <th>Note</th>
+                </>
+              ) : (
+                <>
+                  <th>Avg Score</th>
+                  <th>Priority</th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rankings.map(r => {
+              const el = PCT_ELEMENTS[r.elementIndex];
+              const isExpanded = expandedRow === r.elementIndex;
+              const delta = r.delta;
+              const note = delta !== null
+                ? delta < -0.5 ? 'Org rates lower than leadership'
+                : delta > 0.5  ? 'Org rates higher'
+                :                 'Aligned'
+                : '—';
+              return (
+                <React.Fragment key={r.elementIndex}>
+                  <tr onClick={() => setExpandedRow(isExpanded ? null : r.elementIndex)} style={{ cursor: 'pointer' }}>
+                    <td>
+                      <strong>#{r.rank}</strong>
+                      {r.rank === 1 && <span className="badge badge-orange" style={{ marginLeft: 6 }}>Highest Priority</span>}
+                    </td>
+                    <td>
+                      <strong>PCT {el.n}</strong> — {el.title}
+                      <span className="muted small" style={{ marginLeft: 6 }}>{isExpanded ? '▲' : '▼'}</span>
+                    </td>
+                    {isMixed ? (
+                      <>
+                        <td>{r.leadershipAvg !== null ? r.leadershipAvg : '—'}</td>
+                        <td>{r.orgAvg !== null ? r.orgAvg : '—'}</td>
+                        <td style={{ color: delta < 0 ? 'var(--red)' : delta > 0 ? 'var(--green)' : 'var(--ink-3)', fontWeight: 600 }}>
+                          {delta !== null ? (delta > 0 ? '+' : '') + delta : '—'}
+                        </td>
+                        <td className="small muted">{note}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{r.leadershipAvg !== null ? `${r.leadershipAvg}/7` : '—'}</td>
+                        <td>{r.rank === 1 ? <span className="badge badge-orange">Highest Priority</span> : ''}</td>
+                      </>
+                    )}
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={isMixed ? 6 : 4} style={{ padding: 0, background: 'var(--surface-2)' }}>
+                        <MBDExpandedBlock
+                          el={el}
+                          mbdInputs={mbdInputs}
+                          onUpdate={updateMbd}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
+// ── MBD Expanded Block (cohort view) ─────────────────────────
+function MBDExpandedBlock({ el, mbdInputs, onUpdate }) {
+  return (
+    <div style={{ padding: '20px 24px' }}>
+      <h3 style={{ marginBottom: 4 }}>{el.title}</h3>
+      <p className="small muted" style={{ marginBottom: 20 }}>{el.heart}</p>
+
+      {el.shifts.map((shift, shiftPos) => {
+        const key = `${el.n - 1}-${shiftPos}`;
+        const mbd = mbdInputs[key] || {};
+        const parts = shift.label.split(' over ');
+        const over = parts[0];
+        const under = parts.slice(1).join(' over ');
+
+        return (
+          <div key={shiftPos} style={{ marginBottom: 28, borderLeft: '3px solid var(--accent)', paddingLeft: 16 }}>
+            <p style={{ fontWeight: 700, marginBottom: 16 }}>
+              Shift {shiftPos + 1} —{' '}
+              <strong>{over}</strong>
+              <span className="muted" style={{ fontWeight: 400 }}> over </span>
+              {under}
+            </p>
+
+            {[
+              { field: 'moreOf',      label: 'THREE THINGS WE MUST DO MORE OF' },
+              { field: 'better',      label: 'THREE THINGS WE MUST DO BETTER' },
+              { field: 'differently', label: 'THREE THINGS WE MUST DO DIFFERENTLY' }
+            ].map(({ field, label }) => (
+              <div key={field} style={{ marginBottom: 16 }}>
+                <div className="mbd-header" style={{ marginBottom: 8 }}>{label}</div>
+                {[0, 1, 2].map(i => (
+                  <input
+                    key={i}
+                    className="form-input"
+                    style={{ marginBottom: 6 }}
+                    value={(mbd[field] || ['','',''])[i] || ''}
+                    onChange={e => onUpdate(el.n - 1, shiftPos, field, i, e.target.value)}
+                    placeholder={`${i + 1}.`}
+                  />
+                ))}
+              </div>
+            ))}
+
+            <div>
+              <div className="mbd-header" style={{ marginBottom: 8 }}>SHIFT IS COMPLETE WHEN</div>
+              <input
+                className="form-input"
+                value={mbd.completeWhen || ''}
+                onChange={e => onUpdate(el.n - 1, shiftPos, 'completeWhen', undefined, e.target.value)}
+                placeholder="Describe a specific, observable outcome that signals this shift is complete…"
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Thematic Summary ──────────────────────────────────────────
+function ThematicSummary({ cohortId }) {
+  const [synthesis, setSynthesis] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [timestamp, setTimestamp] = React.useState(null);
+
+  React.useEffect(() => {
+    fetch(`/api/cohorts/${cohortId}/synthesize`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && !data.error) {
+          setSynthesis(data);
+          setTimestamp(new Date().toLocaleString());
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [cohortId]);
+
+  if (loading) return (
+    <div className="card" style={{ marginBottom: 24 }}>
+      <div className="loading-block">
+        <div className="spinner" />
+        <p className="small muted">Generating thematic summary…</p>
+      </div>
+    </div>
+  );
+
+  if (!synthesis) return null;
+
+  return (
+    <div className="card" style={{ marginBottom: 24 }}>
+      <div className="card-header"><h3>Thematic Summary</h3></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, padding: 16 }}>
+        {[
+          { key: 'moreOf',      label: 'MORE OF' },
+          { key: 'better',      label: 'BETTER' },
+          { key: 'differently', label: 'DIFFERENTLY' }
+        ].map(({ key, label }) => (
+          <div key={key} style={{ background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', padding: 14 }}>
+            <div className="mbd-header" style={{ marginBottom: 8 }}>{label}</div>
+            <p className="small" style={{ lineHeight: 1.6 }}>{synthesis[key]}</p>
+          </div>
+        ))}
+      </div>
+      {(synthesis.leadershipThemes || synthesis.orgThemes) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 16px 16px' }}>
+          {synthesis.leadershipThemes && (
+            <div style={{ background: 'rgba(31,111,92,0.08)', borderRadius: 'var(--radius-sm)', padding: 12 }}>
+              <div className="label" style={{ marginBottom: 4 }}>Leadership Themes</div>
+              <p className="small">{synthesis.leadershipThemes}</p>
+            </div>
+          )}
+          {synthesis.orgThemes && (
+            <div style={{ background: 'rgba(245,158,11,0.08)', borderRadius: 'var(--radius-sm)', padding: 12 }}>
+              <div className="label" style={{ marginBottom: 4 }}>Organizational Themes</div>
+              <p className="small">{synthesis.orgThemes}</p>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="small muted" style={{ textAlign: 'center', padding: '0 16px 12px' }}>
+        Generated by AI · {timestamp}
+      </p>
+    </div>
+  );
+}
+
+// ── AI Summary Display ────────────────────────────────────────
 function AISummaryDisplay({ summary, onRegenerate }) {
   return (
     <div>
-      {/* Headline */}
       <div className="ai-section">
         <div className="ai-section-title">Your Leadership Theme</div>
         <p className="headline-text">"{summary.headline}"</p>
       </div>
 
-      {/* Quadrant Profile */}
       {summary.quadrantProfile && (
         <div className="ai-section">
           <div className="ai-section-title">Quadrant Profile</div>
@@ -1045,7 +1199,6 @@ function AISummaryDisplay({ summary, onRegenerate }) {
         </div>
       )}
 
-      {/* Strengths & Development */}
       <div className="ai-section">
         <div className="strength-dev-grid">
           <div>
@@ -1054,9 +1207,7 @@ function AISummaryDisplay({ summary, onRegenerate }) {
               <div key={i} className="strength-item" style={{ marginBottom: 10 }}>
                 <div className="item-element">{s.element}</div>
                 <div className="item-score">
-                  <div className="score-bar" style={{ flex: 1 }}>
-                    <div className="score-bar-fill" style={{ width: `${(s.score / 7) * 100}%` }} />
-                  </div>
+                  <div className="score-bar" style={{ flex: 1 }}><div className="score-bar-fill" style={{ width: `${(s.score / 7) * 100}%` }} /></div>
                   <span className="score-num">{s.score}/7</span>
                 </div>
                 <p className="item-insight">{s.insight}</p>
@@ -1069,9 +1220,7 @@ function AISummaryDisplay({ summary, onRegenerate }) {
               <div key={i} className="dev-item" style={{ marginBottom: 10 }}>
                 <div className="item-element">{d.element}</div>
                 <div className="item-score">
-                  <div className="score-bar" style={{ flex: 1 }}>
-                    <div className="score-bar-fill" style={{ width: `${(d.score / 7) * 100}%`, background: '#e07a40' }} />
-                  </div>
+                  <div className="score-bar" style={{ flex: 1 }}><div className="score-bar-fill" style={{ width: `${(d.score / 7) * 100}%`, background: '#e07a40' }} /></div>
                   <span className="score-num" style={{ color: '#e07a40' }}>{d.score}/7</span>
                 </div>
                 <p className="item-insight">{d.insight}</p>
@@ -1081,7 +1230,6 @@ function AISummaryDisplay({ summary, onRegenerate }) {
         </div>
       </div>
 
-      {/* Priority Analysis */}
       {summary.priorityAnalysis && (
         <div className="ai-section">
           <div className="ai-section-title">Priority Element Analysis</div>
@@ -1100,32 +1248,26 @@ function AISummaryDisplay({ summary, onRegenerate }) {
         </div>
       )}
 
-      {/* Coaching Questions */}
       {summary.coachingQuestions && (
         <div className="ai-section">
           <div className="ai-section-title">3 Questions to Sit With</div>
           {summary.coachingQuestions.map((q, i) => (
-            <div key={i} className="coaching-q" style={{ marginBottom: 8 }}>
-              {i + 1}. {q}
-            </div>
+            <div key={i} className="coaching-q" style={{ marginBottom: 8 }}>{i + 1}. {q}</div>
           ))}
         </div>
       )}
 
-      {/* 90-Day Focus */}
       {summary['90DayFocus'] && (
         <div className="ai-section">
           <div className="ai-section-title">Your 90-Day Focus</div>
           <div>
             {[
-              { key: 'week1to2', label: 'Weeks 1–2' },
-              { key: 'week3to6', label: 'Weeks 3–6' },
+              { key: 'week1to2',  label: 'Weeks 1–2' },
+              { key: 'week3to6',  label: 'Weeks 3–6' },
               { key: 'week7to12', label: 'Weeks 7–12' }
             ].map(({ key, label }) => (
               <div key={key} className="timeline-item">
-                <div className="timeline-marker">
-                  <span className="timeline-period">{label}</span>
-                </div>
+                <div className="timeline-marker"><span className="timeline-period">{label}</span></div>
                 <div className="timeline-content">{summary['90DayFocus'][key]}</div>
               </div>
             ))}
@@ -1140,9 +1282,7 @@ function AISummaryDisplay({ summary, onRegenerate }) {
       )}
 
       <div className="ai-section no-print">
-        <button className="btn btn-ghost btn-sm" onClick={onRegenerate}>
-          ↺ Regenerate Analysis
-        </button>
+        <button className="btn btn-ghost btn-sm" onClick={onRegenerate}>↺ Regenerate Analysis</button>
       </div>
     </div>
   );

@@ -478,9 +478,9 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div className="score-bar" style={{ width: 60 }}>
-                        <div className="score-bar-fill" style={{ width: `${(r.step / 6) * 100}%` }} />
+                        <div className="score-bar-fill" style={{ width: `${(r.step / 5) * 100}%` }} />
                       </div>
-                      <span className="small muted">Step {r.step}/6</span>
+                      <span className="small muted">Step {r.step}/5</span>
                     </div>
                   </td>
                   <td>
@@ -597,7 +597,7 @@ function ResponseSlideover({ response, token, aiAvailable, onClose, onDelete }) 
       <div className="slideover-header">
         <div>
           <h3>{response.name || 'Unknown'}</h3>
-          <p className="small muted">{response.role || '—'} · Step {response.step}/6</p>
+          <p className="small muted">{response.role || '—'} · Step {response.step}/5</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-danger btn-sm" onClick={onDelete}>Delete</button>
