@@ -1138,6 +1138,29 @@ th  { font-family: 'Chalkduster', 'Comic Sans MS', cursive; }
 .w-full        { width: 100%; }
 .text-center   { text-align: center; }
 
+/* ── Scroll-to-top ───────────────────────────────────────────── */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #C1361D;
+  color: #FFFFFF;
+  border: none;
+  cursor: pointer;
+  font-family: Chalkduster, cursive;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, background 0.2s;
+}
+.scroll-top-btn:hover { background: #A02010; }
+
 /* ── Print ───────────────────────────────────────────────────── */
 @media print {
   .topnav, .stepper, .tweaks-btn, .tweaks-panel, .btn, .no-print { display: none !important; }

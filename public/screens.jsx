@@ -144,6 +144,7 @@ function ParticipantApp({ cohortId: urlCohortId }) {
 
   return (
     <div className="app-shell">
+      <FloatingScrollTop />
       {step > 0 && step < 5 && (
         <div className="page-center" style={{ paddingBottom: 0 }}>
           <div className="stepper">
@@ -208,6 +209,28 @@ function ParticipantApp({ cohortId: urlCohortId }) {
         />
       )}
     </div>
+  );
+}
+
+// ── Floating scroll-to-top ───────────────────────────────────
+function FloatingScrollTop() {
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    function onScroll() { setVisible(window.scrollY > 300); }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <button
+      className="scroll-top-btn"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Scroll to top"
+    >
+      ↑
+    </button>
   );
 }
 
