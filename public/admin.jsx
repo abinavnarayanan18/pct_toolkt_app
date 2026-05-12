@@ -115,6 +115,7 @@ function AdminApp() {
               const data = await r.json();
               if (!data.error) { setSelectedCohort(data); loadCohorts(); }
             }}
+            onCohortUpdated={data => { setSelectedCohort(data); loadCohorts(); }}
             onSynthesize={async () => {
               if (!selectedCohort) return;
               setSynthLoading(true);
@@ -358,9 +359,10 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
 }
 
 // ── Responses Tab ─────────────────────────────────────────────
-function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable, onSelectCohort, onOpenResponse, onRefresh, onToggleRelease, onSynthesize, synthResult, synthLoading }) {
+function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable, onSelectCohort, onOpenResponse, onRefresh, onToggleRelease, onCohortUpdated, onSynthesize, synthResult, synthLoading }) {
   const [showSynth, setShowSynth] = React.useState(false);
   const [deltaLoading, setDeltaLoading] = React.useState(false);
+  const [hideLoading, setHideLoading] = React.useState(false);
   const [deltaResult, setDeltaResult] = React.useState(null);
 
   const authHeader = { Authorization: `Bearer ${token}` };
@@ -377,10 +379,18 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
     const r1 = await fetch(`/api/cohorts/${selectedCohort.id}/compute-deltas`, { method: 'POST', headers: authHeader });
     const data = await r1.json();
     if (!data.error && !selectedCohort.cohort_avg_released) {
-      await fetch(`/api/cohorts/${selectedCohort.id}/release`, { method: 'PATCH', headers: authHeader });
+      const r2 = await fetch(`/api/cohorts/${selectedCohort.id}/release`, { method: 'PATCH', headers: authHeader });
+      const cohortData = await r2.json();
+      if (!cohortData.error) onCohortUpdated(cohortData);
     }
     setDeltaLoading(false);
     if (!data.error) setDeltaResult(data);
+  }
+
+  async function handleHide() {
+    setHideLoading(true);
+    await onToggleRelease();
+    setHideLoading(false);
   }
 
   const cohort = selectedCohort;
@@ -396,8 +406,10 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
               <button className="btn btn-secondary btn-sm" onClick={onRefresh}>↺ Refresh</button>
               <button className="btn btn-secondary btn-sm" onClick={handleExport}>⬇ CSV</button>
               {cohort.cohort_avg_released ? (
-                <button className="btn btn-secondary btn-sm" onClick={onToggleRelease} title="Hide cohort summary from participants">
-                  🔒 Hide Cohort Summary
+                <button className="btn btn-secondary btn-sm" onClick={handleHide} disabled={hideLoading} title="Hide cohort summary from participants">
+                  {hideLoading
+                    ? <><span className="spinner" style={{ width: 12, height: 12 }} /> Hiding…</>
+                    : '🔒 Hide Cohort Summary'}
                 </button>
               ) : (
                 <button

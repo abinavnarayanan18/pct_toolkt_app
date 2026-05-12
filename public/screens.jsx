@@ -856,20 +856,11 @@ function Step5Summary({ response, cohort, cohortId, responseId }) {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header">
           <h3>PCT Pulse Radar</h3>
-          {radarReleased
-            ? <span className="badge badge-green">Cohort averages shown</span>
-            : avg
-              ? <span className="score-num" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Overall avg: {avg}/7</span>
-              : null}
+          {avg && <span className="score-num" style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>Overall avg: {avg}/7</span>}
         </div>
         <div style={{ padding: '8px 0', minHeight: 480 }}>
           {radarScores && radarScores.length === 10 && (
-            <RadarChart
-              scores={radarScores}
-              cohortScores={null}
-              showCohort={false}
-              orgScores={null}
-            />
+            <RadarChart scores={radarScores} />
           )}
         </div>
       </div>
@@ -993,14 +984,14 @@ function Step5Summary({ response, cohort, cohortId, responseId }) {
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="card-header">
               <h3>Cohort Average</h3>
-              <span className="badge badge-gray">Leadership</span>
+              {radarAudience === 'mixed' && orgRadar && orgRadar.length === 10
+                ? <span className="badge badge-blue">Leadership & Org averages shown</span>
+                : <span className="badge badge-gray">Cohort averages shown</span>}
             </div>
             <div style={{ padding: '8px 0', minHeight: 480 }}>
               {leadershipRadar && leadershipRadar.length === 10 && (
                 <RadarChart
                   scores={leadershipRadar}
-                  cohortScores={null}
-                  showCohort={false}
                   orgScores={radarAudience === 'mixed' && orgRadar && orgRadar.length === 10 ? orgRadar : null}
                 />
               )}
@@ -1070,69 +1061,54 @@ function PCTRankingsTable({ cohortId, audience }) {
 
   const isMixed = audience === 'mixed';
 
+  function priorityLabel(delta) {
+    if (delta === null) return { text: '—', color: '#888888' };
+    if (delta < -1.0) return { text: 'Critical Blind Spot', color: '#C1361D' };
+    if (delta < 0)    return { text: 'Blind Spot',          color: '#C1361D' };
+    return               { text: 'Aligned',                 color: '#888888' };
+  }
+
   return (
     <div>
+      {isMixed && (
+        <p className="small muted" style={{ padding: '8px 16px 0', lineHeight: 1.6 }}>
+          Ranked by gap between how Organisational People and Leadership rate each PCT.
+          A negative gap means Org rates it lower than Leadership — these are your blind spots.
+        </p>
+      )}
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Rank</th>
               <th>PCT Element</th>
-              {isMixed ? (
-                <>
-                  <th>Leadership Avg</th>
-                  <th>Org Avg</th>
-                  <th>Delta</th>
-                  <th>Note</th>
-                </>
-              ) : (
-                <>
-                  <th>Avg Score</th>
-                  <th>Priority</th>
-                </>
-              )}
+              {isMixed
+                ? <th>Priority Label</th>
+                : <th>Cohort Avg Score</th>}
             </tr>
           </thead>
           <tbody>
             {rankings.map(r => {
               const el = PCT_ELEMENTS[r.elementIndex];
               const isExpanded = expandedRow === r.elementIndex;
-              const delta = r.delta;
-              const note = delta !== null
-                ? delta < -0.5 ? 'Org rates lower than leadership'
-                : delta > 0.5  ? 'Org rates higher'
-                :                 'Aligned'
-                : '—';
+              const label = isMixed ? priorityLabel(r.delta) : null;
               return (
                 <React.Fragment key={r.elementIndex}>
                   <tr onClick={() => setExpandedRow(isExpanded ? null : r.elementIndex)} style={{ cursor: 'pointer' }}>
-                    <td>
-                      <strong>#{r.rank}</strong>
-                      {r.rank === 1 && <span className="badge badge-orange" style={{ marginLeft: 6 }}>Highest Priority</span>}
-                    </td>
+                    <td><strong>#{r.rank}</strong></td>
                     <td>
                       <strong>PCT {el.n}</strong> — {el.title}
                       <span className="muted small" style={{ marginLeft: 6 }}>{isExpanded ? '▲' : '▼'}</span>
                     </td>
                     {isMixed ? (
-                      <>
-                        <td>{r.leadershipAvg !== null ? r.leadershipAvg : '—'}</td>
-                        <td>{r.orgAvg !== null ? r.orgAvg : '—'}</td>
-                        <td style={{ color: delta < 0 ? 'var(--red)' : delta > 0 ? 'var(--green)' : 'var(--ink-3)', fontWeight: 600 }}>
-                          {delta !== null ? (delta > 0 ? '+' : '') + delta : '—'}
-                        </td>
-                        <td className="small muted">{note}</td>
-                      </>
+                      <td style={{ color: label.color, fontWeight: 600 }}>{label.text}</td>
                     ) : (
-                      <>
-                        <td>{r.leadershipAvg !== null ? `${r.leadershipAvg}/7` : '—'}</td>
-                        <td>{r.rank === 1 ? <span className="badge badge-orange">Highest Priority</span> : ''}</td>
-                      </>
+                      <td>{r.leadershipAvg !== null ? `${r.leadershipAvg}/7` : '—'}</td>
                     )}
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={isMixed ? 6 : 4} style={{ padding: 0, background: 'var(--surface-2)' }}>
+                      <td colSpan={3} style={{ padding: 0, background: 'var(--surface-2)' }}>
                         <MBDExpandedBlock
                           el={el}
                           mbdInputs={mbdInputs}

@@ -47,9 +47,9 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
       {
         label: hasOrg ? 'Leadership' : 'You',
         data: safeScores,
-        backgroundColor: 'rgba(193,54,29,0.10)',
+        backgroundColor: 'rgba(193, 54, 29, 0.15)',
         borderColor: redColor,
-        borderWidth: 2.5,
+        borderWidth: 2,
         pointBackgroundColor: redColor,
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
@@ -58,22 +58,6 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
       }
     ];
 
-    if (showCohort && cohortScores && cohortScores.length === 10 && !hasOrg) {
-      datasets.push({
-        label: 'Cohort Avg',
-        data: cohortScores.map(s => s || 0),
-        backgroundColor: 'rgba(0,0,0,0)',
-        borderColor: greyColor,
-        borderWidth: 1.5,
-        borderDash: [5, 3],
-        pointBackgroundColor: greyColor,
-        pointBorderColor: '#fff',
-        pointBorderWidth: 1.5,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      });
-    }
-
     if (hasOrg) {
       const safeOrg = Array(10).fill(0).map((_, i) =>
         (orgScores[i] != null && !isNaN(orgScores[i])) ? orgScores[i] : 0
@@ -81,11 +65,11 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
       datasets.push({
         label: 'Organisational People',
         data: safeOrg,
-        backgroundColor: 'rgba(136,136,136,0.08)',
-        borderColor: greyColor,
+        backgroundColor: 'rgba(26, 26, 26, 0.08)',
+        borderColor: '#1A1A1A',
         borderWidth: 2,
         borderDash: [6, 3],
-        pointBackgroundColor: greyColor,
+        pointBackgroundColor: '#1A1A1A',
         pointBorderColor: '#fff',
         pointBorderWidth: 1.5,
         pointRadius: 4,
@@ -127,7 +111,7 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
         },
         plugins: {
           legend: {
-            display: (showCohort && cohortScores && cohortScores.length === 10) || hasOrg,
+            display: hasOrg,
             position: 'bottom',
             labels: {
               color: labelColor,
@@ -158,7 +142,7 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
     return () => {
       if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
     };
-  }, [scores, cohortScores, showCohort, orgScores]);
+  }, [scores, orgScores]);
 
   const avg = safeScores.filter(Boolean).length
     ? (safeScores.filter(Boolean).reduce((a, b) => a + b, 0) / safeScores.filter(Boolean).length).toFixed(1)
@@ -194,7 +178,7 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
             Leadership
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 14, height: 3, background: '#888888', display: 'inline-block', borderRadius: 2, opacity: .8 }} />
+            <span style={{ width: 14, height: 3, background: '#1A1A1A', display: 'inline-block', borderRadius: 2 }} />
             Organisational People
           </span>
         </div>
