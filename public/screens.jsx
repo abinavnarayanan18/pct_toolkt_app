@@ -442,6 +442,98 @@ function PulseCard({ element, index, value, onChange }) {
   );
 }
 
+// ── Heart/Head/Hands Card ────────────────────────────────────
+function HeartHeadHandsCard({ element }) {
+  const photoSrc = `images/pct${element.n}.png`;
+  return (
+    <div style={{ border: '2px solid #C1361D', borderRadius: 8, padding: 24, marginTop: 20 }}>
+      {/* Oval badge */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <span style={{
+          display: 'inline-block',
+          background: '#e0e0e0',
+          border: '2px solid #C1361D',
+          borderRadius: 50,
+          padding: '8px 20px',
+          fontFamily: 'Chalkduster, cursive',
+          fontSize: '0.875rem',
+          lineHeight: 1.4
+        }}>
+          {element.title}
+        </span>
+      </div>
+
+      {/* Row 1: Heart/Words */}
+      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 36 }}>♡</span>
+          <span style={{ fontFamily: 'Chalkduster, cursive', fontSize: '0.75rem', textAlign: 'center', lineHeight: 1.3 }}>
+            <span style={{ color: '#C1361D' }}>Heart</span><span style={{ color: '#1A1A1A' }}>/Words</span>
+          </span>
+        </div>
+        <div>
+          <img
+            src={photoSrc}
+            alt={element.heart_attribution || `PCT ${element.n}`}
+            style={{ width: '100%', maxHeight: 160, objectFit: 'cover', filter: 'grayscale(100%)', marginBottom: 8, borderRadius: 4 }}
+            onError={e => { e.target.style.display = 'none'; }}
+          />
+          <p style={{ fontFamily: 'Chalkduster, cursive', fontSize: '1.2rem', color: '#C1361D', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.5 }}>
+            {element.heart_quote}
+          </p>
+          {element.heart_attribution && (
+            <p style={{ fontFamily: 'Chalkduster, cursive', fontSize: '0.85rem', color: '#1A1A1A' }}>
+              — {element.heart_attribution}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Row 2: Head/Test */}
+      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 36 }}>🧠</span>
+          <span style={{ fontFamily: 'Chalkduster, cursive', fontSize: '0.75rem', textAlign: 'center', lineHeight: 1.3 }}>
+            <span style={{ color: '#C1361D' }}>Head</span><span style={{ color: '#1A1A1A' }}>/Test</span>
+          </span>
+        </div>
+        <div>
+          <p style={{ fontFamily: 'Chalkduster, cursive', fontSize: '1rem', color: '#1A1A1A', lineHeight: 1.6 }}>
+            {element.pulse}
+          </p>
+        </div>
+      </div>
+
+      {/* Row 3: Hands/Shifts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 36 }}>☞</span>
+          <span style={{ fontFamily: 'Chalkduster, cursive', fontSize: '0.75rem', textAlign: 'center', lineHeight: 1.3 }}>
+            <span style={{ color: '#C1361D' }}>Hands</span><span style={{ color: '#1A1A1A' }}>/Shifts</span>
+          </span>
+        </div>
+        <div>
+          {element.shifts.map((shift, i) => {
+            const overIdx = shift.label.indexOf(' over ');
+            const xPart = overIdx !== -1 ? shift.label.substring(0, overIdx) + ' over' : shift.label;
+            const yPart = overIdx !== -1 ? shift.label.substring(overIdx + 6) : '';
+            return (
+              <div key={i} style={{ marginBottom: i < element.shifts.length - 1 ? 14 : 0 }}>
+                <span style={{ fontFamily: 'Chalkduster, cursive', color: '#C1361D', display: 'block', lineHeight: 1.4 }}>
+                  {xPart}
+                </span>
+                <span style={{ fontFamily: 'Chalkduster, cursive', color: '#1A1A1A', display: 'block', lineHeight: 1.4 }}>
+                  {yPart}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Step 2: Priority element ─────────────────────────────────
 function Step2Priority({ response, onBack, onNext }) {
   const [selected, setSelected] = React.useState(
@@ -491,10 +583,7 @@ function Step2Priority({ response, onBack, onNext }) {
       </div>
 
       {selected !== null && (
-        <div className="alert alert-success" style={{ marginTop: 20 }}>
-          <strong>Selected:</strong> PCT {PCT_ELEMENTS[selected].n} — {PCT_ELEMENTS[selected].title}
-          <br /><em style={{ fontSize: '.875rem', marginTop: 4, display: 'block' }}>{PCT_ELEMENTS[selected].heart}</em>
-        </div>
+        <HeartHeadHandsCard element={PCT_ELEMENTS[selected]} />
       )}
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
@@ -553,16 +642,15 @@ function Step3Ranking({ response, onBack, onNext }) {
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 680 }}>
       <div style={{ marginBottom: 24 }}>
         <h2>Rank Your Priority Shifts</h2>
-        <div className="alert alert-success" style={{ marginTop: 12, marginBottom: 12 }}>
-          <strong>Priority: PCT {priorityEl.n} — {priorityEl.title}</strong>
-        </div>
-        <p className="muted">
+        <p className="muted" style={{ marginTop: 8 }}>
           Drag to reorder — rank these {shifts.length} shifts from most important (#1) to least important (#{shifts.length})
           for your current leadership context.
         </p>
       </div>
 
-      <div className="rank-list">
+      <HeartHeadHandsCard element={priorityEl} />
+
+      <div className="rank-list" style={{ marginTop: 24 }}>
         {items.map((shiftIdx, rankPos) => {
           const shift = shifts[shiftIdx];
           const parts = shift.label.split(' over ');

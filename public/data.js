@@ -4,6 +4,8 @@ const PCT_ELEMENTS = [
     title: "Communicate a Compelling Change Narrative",
     quadrant: "ASPIRATION",
     quote: "I have a PLAN",
+    heart_quote: '"I have a PLAN"',
+    heart_attribution: 'Martin Luther King Jr.',
     pulse: "Our leaders communicate a clear, concise, consistent and compelling narrative that makes a purposeful, passionate and emotionally resonant case for change",
     heart: "People must believe that the achievement of a shared aspiration is possible and worthy of their effort before they are willing to change their behavior.",
     shifts: [
@@ -17,6 +19,8 @@ const PCT_ELEMENTS = [
     title: "Act to Think Differently",
     quadrant: "ASPIRATION",
     quote: "Be the Change you wish to see",
+    heart_quote: '"Be the Change that you wish to see in the world"',
+    heart_attribution: 'Gandhi',
     pulse: "Our leaders generate respect and followership from others by personally, authentically and openly modelling the changed beliefs and behaviors required to evolve the organization",
     heart: "Leaders who deliberately act their way into a new way of thinking are more successful in changing their own behavior and motivating changed behavior in others.",
     shifts: [
@@ -30,6 +34,8 @@ const PCT_ELEMENTS = [
     title: "Embrace Situational Humility",
     quadrant: "ALIGNMENT",
     quote: "Leadership is NOT defined by the exercise of power but by the capacity to increase the sense of power among those led",
+    heart_quote: '"Leadership is NOT defined by the exercise of power, but by the capacity to increase the sense of power among those led"',
+    heart_attribution: 'Mary Parker Follett',
     pulse: "Our leaders show vulnerability, seek help, demonstrate that failure is acceptable, and consistently seek to increase the autonomy and accountability of others",
     heart: "Leaders must embrace Situational Humility by showing vulnerability, seeking help, asking questions and demonstrating that failure is acceptable.",
     shifts: [
@@ -43,6 +49,8 @@ const PCT_ELEMENTS = [
     title: "Focus Attention on What Matters",
     quadrant: "ALIGNMENT",
     quote: "Focus is about saying NO!",
+    heart_quote: '"Focus is about saying NO!"',
+    heart_attribution: 'Steve Jobs',
     pulse: "Our leaders bring clarity and focus by prioritizing and communicating the key strategic priorities that matter most to the business",
     heart: "To reduce collaborative overload, leaders must adopt a portfolio-based approach to change focused on the vital few initiatives that matter most.",
     shifts: [
@@ -56,6 +64,8 @@ const PCT_ELEMENTS = [
     title: "Motivate Discretionary Effort",
     quadrant: "AUTONOMY",
     quote: "Individual commitment to a group effort — that is what makes a team work, a company work, a society work",
+    heart_quote: '"Individual commitment to a group effort – that is what makes a team work, a company work, a society work."',
+    heart_attribution: 'Vince Lombardi',
     pulse: "Our leaders understand how to motivate discretionary effort by tapping into the aspirations of others and giving them autonomy in return for accountability",
     heart: "To unlock discretionary effort leaders must focus on intrinsic motivational levers that compel people to go the extra mile.",
     shifts: [
@@ -69,6 +79,8 @@ const PCT_ELEMENTS = [
     title: "Give Others Agency",
     quadrant: "AUTONOMY",
     quote: "Agency is a two-way street: Power comes with responsibility and accountability",
+    heart_quote: '"Agency is a two-way street: Power comes with responsibility and accountability"',
+    heart_attribution: '',
     pulse: "Our leaders create agency by giving others the permission to take independent actions and make changes without hierarchical approval",
     heart: "Organizations that give people agency — the permission to take independent action or make changes without approval — are far more likely to succeed in transformation.",
     shifts: [
@@ -82,6 +94,8 @@ const PCT_ELEMENTS = [
     title: "Decentralize Decision Making",
     quadrant: "ACCOUNTABILITY",
     quote: "In most organizations the bottleneck is at the top of the bottle",
+    heart_quote: '"In most organizations the bottleneck is at the top of the bottle."',
+    heart_attribution: 'Roger Martin',
     pulse: "Our leaders only make the choices they are best equipped to make, clarify the choices others should make and the boundaries within which to make them",
     heart: "Roger Martin envisions organizations as decision factories and argues that leaders should only make the choices they are best-equipped to make.",
     shifts: [
@@ -95,6 +109,8 @@ const PCT_ELEMENTS = [
     title: "Catalyze the Network",
     quadrant: "ACCOUNTABILITY",
     quote: "We need a second operating system devoted to the design and delivery of strategy using an agile, network-like structure",
+    heart_quote: '"We need a second operating system devoted to the design and delivery of strategy that uses an agile, network like structure."',
+    heart_attribution: 'John Kotter',
     pulse: "Our leaders create the time and space for cross-functional teams to emerge, converge, and engage around crucial strategy design and delivery interfaces",
     heart: "Leaders must exercise their position power to override the traditional hierarchy, creating space for cross-functional teams to engage around critical transformation interfaces.",
     shifts: [
@@ -108,6 +124,8 @@ const PCT_ELEMENTS = [
     title: "Lead the System",
     quadrant: "ACCOUNTABILITY",
     quote: "Real change starts with recognizing that we are part of the systems we seek to change",
+    heart_quote: '"Real change starts with recognizing that we are part of the systems we seek to change."',
+    heart_attribution: 'Peter Senge',
     pulse: "Our leaders catalyze the collaborative leadership required to successfully navigate dynamic, complex, and systemic change",
     heart: "We need a new kind of leader — a systems leader — to catalyse the collaborative leadership required to successfully navigate dynamic, complex and systemic change.",
     shifts: [
@@ -121,6 +139,8 @@ const PCT_ELEMENTS = [
     title: "Nudge the Culture",
     quadrant: "ALIGNMENT",
     quote: "Culture isn't just one aspect of the game, it is the game",
+    heart_quote: '"I came to see, in my time at IBM, that culture isn\'t just one aspect of the game, it is the game."',
+    heart_attribution: 'Lou Gerstner',
     pulse: "Our leaders consciously and continuously nudge the culture in the direction of aspiration, alignment, autonomy and accountability",
     heart: "Culture acts as a limiting and resistive force to strategic change. While culture is notoriously hard to change, it cannot be left to chance.",
     shifts: [
