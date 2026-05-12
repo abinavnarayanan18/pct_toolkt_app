@@ -1,7 +1,8 @@
 // Radar Chart using Chart.js — handles label layout automatically
-function RadarChart({ scores, cohortScores, showCohort }) {
+function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
   const canvasRef = React.useRef(null);
   const chartRef = React.useRef(null);
+  const hasOrg = orgScores && orgScores.length === 10;
 
   const labels = PCT_ELEMENTS.map(el => {
     // Wrap long titles across multiple lines for Chart.js
@@ -35,10 +36,11 @@ function RadarChart({ scores, cohortScores, showCohort }) {
     const tickColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)';
     const labelColor = isDark ? '#c8cbc9' : '#3a3f3d';
     const accentColor = '#1f6f5c';
+    const amberColor = '#f59e0b';
 
     const datasets = [
       {
-        label: 'You',
+        label: hasOrg ? 'Leadership' : 'You',
         data: scores && scores.length === 10 ? scores.map(s => s || 0) : Array(10).fill(0),
         backgroundColor: 'rgba(31,111,92,0.15)',
         borderColor: accentColor,
@@ -51,7 +53,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
       }
     ];
 
-    if (showCohort && cohortScores && cohortScores.length === 10) {
+    if (showCohort && cohortScores && cohortScores.length === 10 && !hasOrg) {
       datasets.push({
         label: 'Cohort Avg',
         data: cohortScores.map(s => s || 0),
@@ -60,6 +62,22 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         borderWidth: 1.5,
         borderDash: [5, 3],
         pointBackgroundColor: 'rgba(100,100,100,0.5)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      });
+    }
+
+    if (hasOrg) {
+      datasets.push({
+        label: 'Organizational',
+        data: orgScores.map(s => s || 0),
+        backgroundColor: 'rgba(245,158,11,0.10)',
+        borderColor: amberColor,
+        borderWidth: 2,
+        borderDash: [6, 3],
+        pointBackgroundColor: amberColor,
         pointBorderColor: '#fff',
         pointBorderWidth: 1.5,
         pointRadius: 4,
@@ -95,12 +113,9 @@ function RadarChart({ scores, cohortScores, showCohort }) {
             },
             pointLabels: {
               color: ctx => {
-                // PCT number line (index 0 in the array) gets accent color
                 return ctx.index !== undefined ? accentColor : labelColor;
               },
               font: ctx => {
-                // First line of each label (PCT N) is bold
-                const linesForPoint = labels[ctx.index] || [];
                 return {
                   size: 11,
                   weight: ctx.dataIndex === 0 ? '700' : '400',
@@ -116,7 +131,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         },
         plugins: {
           legend: {
-            display: showCohort && cohortScores && cohortScores.length === 10,
+            display: (showCohort && cohortScores && cohortScores.length === 10) || hasOrg,
             position: 'bottom',
             labels: {
               color: labelColor,
@@ -150,7 +165,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         chartRef.current = null;
       }
     };
-  }, [scores, cohortScores, showCohort]);
+  }, [scores, cohortScores, showCohort, orgScores]);
 
   const avg = scores && scores.length
     ? (scores.filter(Boolean).reduce((a, b) => a + b, 0) / scores.filter(Boolean).length).toFixed(1)
@@ -158,7 +173,7 @@ function RadarChart({ scores, cohortScores, showCohort }) {
 
   return (
     <div style={{ width: '100%' }}>
-      {avg && (
+      {avg && !hasOrg && (
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
@@ -172,6 +187,25 @@ function RadarChart({ scores, cohortScores, showCohort }) {
         </div>
       )}
       <canvas ref={canvasRef} />
+      {hasOrg && (
+        <div style={{
+          display: 'flex',
+          gap: 20,
+          justifyContent: 'center',
+          marginTop: 12,
+          fontSize: '.8125rem',
+          fontFamily: 'var(--f-head)',
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#1f6f5c', display: 'inline-block' }} />
+            Leadership
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+            Organizational
+          </span>
+        </div>
+      )}
     </div>
   );
 }

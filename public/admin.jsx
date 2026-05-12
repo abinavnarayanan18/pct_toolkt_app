@@ -290,7 +290,7 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
           <table>
             <thead>
               <tr>
-                <th>Cohort</th><th>Sponsor</th><th>Status</th>
+                <th>Cohort</th><th>Sponsor</th><th>Status</th><th>Audience</th>
                 <th>Target</th><th>Responses</th><th>Actions</th>
               </tr>
             </thead>
@@ -305,6 +305,11 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
                   </td>
                   <td>{c.sponsor || '—'}</td>
                   <td><span className={`badge ${c.status === 'open' ? 'badge-green' : 'badge-gray'}`}>{c.status}</span></td>
+                  <td>
+                    <span className={`badge ${c.audience === 'mixed' ? 'badge-amber' : 'badge-gray'}`}>
+                      {c.audience === 'mixed' ? 'Mixed' : 'Leadership Only'}
+                    </span>
+                  </td>
                   <td>{c.target}</td>
                   <td>{c.response_count || 0} / {c.submitted_count || 0} submitted</td>
                   <td>
@@ -330,10 +335,27 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
 // ── Responses Tab ─────────────────────────────────────────────
 function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable, onSelectCohort, onOpenResponse, onRefresh, onToggleRelease, onSynthesize, synthResult, synthLoading }) {
   const [showSynth, setShowSynth] = React.useState(false);
+  const [deltaLoading, setDeltaLoading] = React.useState(false);
+  const [deltaResult, setDeltaResult] = React.useState(null);
+
+  const authHeader = { Authorization: `Bearer ${token}` };
 
   async function handleExport() {
     if (!selectedCohort) return;
     window.open(`/api/admin/export/${selectedCohort.id}?token=${token}`, '_blank');
+  }
+
+  async function handleComputeDeltas() {
+    if (!selectedCohort) return;
+    setDeltaLoading(true);
+    setDeltaResult(null);
+    const r1 = await fetch(`/api/cohorts/${selectedCohort.id}/compute-deltas`, { method: 'POST', headers: authHeader });
+    const data = await r1.json();
+    if (!data.error && !selectedCohort.cohort_avg_released) {
+      await fetch(`/api/cohorts/${selectedCohort.id}/release`, { method: 'PATCH', headers: authHeader });
+    }
+    setDeltaLoading(false);
+    if (!data.error) setDeltaResult(data);
   }
 
   const cohort = selectedCohort;
@@ -350,6 +372,14 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
               <button className="btn btn-secondary btn-sm" onClick={handleExport}>⬇ CSV</button>
               <button className="btn btn-secondary btn-sm" onClick={onToggleRelease} title="Toggle cohort average visibility for participants">
                 {cohort.cohort_avg_released ? '🔒 Hide Avg' : '📊 Release Avg'}
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleComputeDeltas}
+                disabled={deltaLoading}
+                title="Compute deltas and release rankings to participants"
+              >
+                {deltaLoading ? <><span className="spinner" style={{ width: 12, height: 12 }} /> Computing…</> : '📊 Compute Deltas & Release'}
               </button>
               <button
                 className="btn btn-primary btn-sm"
@@ -381,6 +411,38 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
         </div>
       )}
 
+      {deltaResult && (
+        <div className="card" style={{ marginBottom: 20, border: '1.5px solid var(--amber)' }}>
+          <div className="card-header">
+            <h3>📊 PCT Rankings</h3>
+            <button className="btn btn-ghost btn-sm" onClick={() => setDeltaResult(null)}>✕</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th><th>PCT Element</th>
+                  <th>Leadership Avg</th><th>Org Avg</th><th>Delta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(deltaResult.rankedPCTs || []).map(r => (
+                  <tr key={r.elementIndex}>
+                    <td><strong>#{r.rank}</strong>{r.rank === 1 && <span className="badge badge-orange" style={{ marginLeft: 6 }}>Highest Priority</span>}</td>
+                    <td>PCT {r.elementIndex + 1} — {PCT_ELEMENTS[r.elementIndex].title}</td>
+                    <td>{r.leadershipAvg !== null ? r.leadershipAvg : '—'}</td>
+                    <td>{r.orgAvg !== null ? r.orgAvg : '—'}</td>
+                    <td style={{ color: r.delta < 0 ? 'var(--red)' : r.delta > 0 ? 'var(--green)' : 'var(--ink-3)', fontWeight: 600 }}>
+                      {r.delta !== null ? (r.delta > 0 ? '+' : '') + r.delta : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {showSynth && (
         <div className="card" style={{ marginBottom: 20, border: '1.5px solid var(--accent)' }}>
           <div className="card-header">
@@ -397,15 +459,22 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
           <table>
             <thead>
               <tr>
-                <th>Name</th><th>Role</th><th>Progress</th>
+                <th>Name</th><th>PCT Role</th><th>Progress</th>
                 <th>Submitted</th><th>AI Analysis</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {responses.map(r => (
                 <tr key={r.id}>
-                  <td><strong>{r.name || '—'}</strong></td>
-                  <td>{r.role || '—'}</td>
+                  <td>
+                    <strong>{r.participant_name || r.name || (r.anonymous ? 'Anonymous' : '—')}</strong>
+                    {r.anonymous && <span className="badge badge-gray" style={{ marginLeft: 6, fontSize: '.6rem' }}>Anon</span>}
+                  </td>
+                  <td>
+                    <span className={`badge ${r.role === 'org' ? 'badge-amber' : 'badge-blue'}`}>
+                      {r.role === 'org' ? 'Org' : 'Leadership'}
+                    </span>
+                  </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div className="score-bar" style={{ width: 60 }}>
@@ -635,6 +704,7 @@ function CohortModal({ cohort, token, onClose, onSaved }) {
   const [sponsor, setSponsor] = React.useState(cohort.sponsor || '');
   const [target, setTarget] = React.useState(cohort.target || 20);
   const [description, setDescription] = React.useState(cohort.description || '');
+  const [audience, setAudience] = React.useState(cohort.audience || 'leadership_only');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
 
@@ -644,7 +714,7 @@ function CohortModal({ cohort, token, onClose, onSaved }) {
     e.preventDefault();
     if (!name.trim()) { setError('Name is required'); return; }
     setLoading(true);
-    const body = { name, sponsor, target: Number(target), description };
+    const body = { name, sponsor, target: Number(target), description, audience };
     const url = isEdit ? `/api/cohorts/${cohort.id}` : '/api/cohorts';
     const method = isEdit ? 'PATCH' : 'POST';
     const r = await fetch(url, {
@@ -683,6 +753,26 @@ function CohortModal({ cohort, token, onClose, onSaved }) {
             <div className="form-group">
               <label className="form-label">Description</label>
               <textarea className="form-textarea" value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Audience</label>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                {[
+                  { value: 'leadership_only', label: 'Leadership Only' },
+                  { value: 'mixed', label: 'Mixed (Leadership + Org)' }
+                ].map(opt => (
+                  <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '.875rem' }}>
+                    <input
+                      type="radio"
+                      name="audience"
+                      value={opt.value}
+                      checked={audience === opt.value}
+                      onChange={() => setAudience(opt.value)}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <div className="modal-footer">

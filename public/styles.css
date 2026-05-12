@@ -1,3 +1,6 @@
+/* Chalkduster is a system font on macOS/iOS; cdnfonts provides it for other platforms */
+@import url('https://fonts.cdnfonts.com/css/chalkduster');
+
 /* ── Design Tokens ─────────────────────────────────────────── */
 :root {
   /* Backgrounds */
@@ -64,11 +67,16 @@
   --shadow-md: 0 4px 16px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.04);
   --shadow-lg: 0 10px 40px rgba(0,0,0,.12);
 
+  /* Semantic */
+  --amber:     #f59e0b;
+  --amber-soft: #fffbeb;
+
   /* Typography */
   --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Fraunces', Georgia, serif;
   --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
-  --font-sketch:  'Caveat', 'Chalkduster', cursive;
+  --font-sketch:  'Chalkduster', 'Comic Sans MS', cursive;
+  --f-head:       'Chalkduster', 'Comic Sans MS', cursive;
 
   /* Transitions */
   --transition: 150ms ease;
@@ -1079,9 +1087,20 @@ tr:hover td { background: var(--surface-2); }
 .concept-quote  { font-family: var(--font-display); font-size: 1.0625rem; font-weight: 300; font-style: italic; color: var(--ink); line-height: 1.55; margin-bottom: 8px; }
 .concept-source { font-size: .6875rem; color: var(--ink-4); font-style: normal; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 
-/* ── Sketch labels ───────────────────────────────────────────── */
-.app-shell h2 { font-family: var(--font-sketch); font-weight: 700; font-size: 1.875rem; }
-.sketch-label { font-family: var(--font-sketch); font-weight: 700; font-size: 1rem; color: var(--red); letter-spacing: .02em; }
+/* ── Chalkduster headings ────────────────────────────────────── */
+.app-shell h1,
+.app-shell h2,
+.app-shell h3,
+.app-shell h4 { font-family: var(--f-head); font-weight: 700; }
+.admin-nav-item { font-family: var(--f-head); }
+.btn { font-family: var(--f-head); }
+th  { font-family: var(--f-head); }
+.activator-header { font-family: var(--f-head); }
+.sketch-label { font-family: var(--f-head); font-weight: 700; font-size: 1rem; color: var(--red); letter-spacing: .02em; }
+.mbd-header { font-family: var(--f-head); font-weight: 700; font-size: .875rem; letter-spacing: .06em; text-transform: uppercase; color: var(--red); }
+
+/* Badge-amber for mixed audience */
+.badge-amber { background: var(--amber-soft); color: var(--amber); border: 1px solid #fde68a; }
 
 /* ── Release avg tooltip ─────────────────────────────────────── */
 .release-avg-btn { position: relative; }
