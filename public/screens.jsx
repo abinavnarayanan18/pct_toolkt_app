@@ -8,6 +8,11 @@ function ParticipantApp({ cohortId: urlCohortId }) {
     const storedRid = localStorage.getItem('pct_solo_resp');
     return storedRid || null;
   });
+  const [hasPreviousSession] = React.useState(() => {
+    if (urlCohortId) return !!localStorage.getItem(`pct_resp_${urlCohortId}`);
+    return !!localStorage.getItem('pct_solo_resp');
+  });
+  const [resumeMode, setResumeMode] = React.useState(null); // null | 'continue' | 'fresh'
   const [response, setResponse] = React.useState(null);
   const [step, setStep] = React.useState(0);
   const [loading, setLoading] = React.useState(!!urlCohortId);
@@ -26,9 +31,9 @@ function ParticipantApp({ cohortId: urlCohortId }) {
       .catch(() => { setError('Could not load cohort'); setLoading(false); });
   }, [effectiveCohortId]);
 
-  // Resume an existing response from localStorage
+  // Resume an existing response from localStorage (only when user confirms)
   React.useEffect(() => {
-    if (!responseId) return;
+    if (!responseId || resumeMode !== 'continue') return;
     fetch(`/api/responses/${responseId}`)
       .then(r => r.json())
       .then(data => {
@@ -43,7 +48,19 @@ function ParticipantApp({ cohortId: urlCohortId }) {
         setStep(Math.max(1, data.step || 1));
         if (!effectiveCohortId && data.cohort_id) setEffectiveCohortId(data.cohort_id);
       });
-  }, [responseId]);
+  }, [responseId, resumeMode]);
+
+  function startFresh() {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('pct_')) localStorage.removeItem(k);
+    });
+    setResponseId(null);
+    setResponse(null);
+    setCohort(null);
+    setEffectiveCohortId(urlCohortId || null);
+    setStep(0);
+    setResumeMode('fresh');
+  }
 
   async function startSession(identity) {
     const { anonymous, participantName, role, cohortId } = identity;
@@ -143,7 +160,15 @@ function ParticipantApp({ cohortId: urlCohortId }) {
         </div>
       )}
 
-      {step === 0 && <Step0Identity urlCohortId={urlCohortId} onComplete={startSession} />}
+      {step === 0 && (
+        <Step0Identity
+          urlCohortId={urlCohortId}
+          onComplete={startSession}
+          hasPreviousSession={hasPreviousSession && resumeMode === null}
+          onContinue={() => setResumeMode('continue')}
+          onStartFresh={startFresh}
+        />
+      )}
       {step === 1 && (
         <Step1Pulse
           response={response}
@@ -187,7 +212,7 @@ function ParticipantApp({ cohortId: urlCohortId }) {
 }
 
 // ── Step 0: Identity ─────────────────────────────────────────
-function Step0Identity({ urlCohortId, onComplete }) {
+function Step0Identity({ urlCohortId, onComplete, hasPreviousSession, onContinue, onStartFresh }) {
   const [anonymous, setAnonymous] = React.useState(false);
   const [participantName, setParticipantName] = React.useState('');
   const [role, setRole] = React.useState('leadership');
@@ -213,6 +238,16 @@ function Step0Identity({ urlCohortId, onComplete }) {
   return (
     <div className="page-center" style={{ paddingTop: 60, maxWidth: 560 }}>
       <div className="card card-lg">
+        {hasPreviousSession && (
+          <div style={{ background: 'var(--warning-bg,#fffbeb)', border: '1px solid var(--warning-border,#f59e0b)', borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: 24 }}>
+            <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: '0.95rem' }}>You have a previous session.</p>
+            <p className="small muted" style={{ margin: '0 0 14px' }}>Continue where you left off, or start fresh.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={onContinue}>Continue</button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onStartFresh}>Start Fresh</button>
+            </div>
+          </div>
+        )}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div className="brand-mark" style={{ width: 56, height: 56, fontSize: '1.25rem', margin: '0 auto 16px' }}>PCT</div>
           <h1 className="display" style={{ fontSize: '2rem', marginBottom: 8 }}>PCT Catalyst</h1>
