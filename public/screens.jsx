@@ -475,7 +475,18 @@ function HeartHeadHandsCard({ element }) {
           <img
             src={photoSrc}
             alt={element.heart_attribution || `PCT ${element.n}`}
-            style={{ width: '100%', maxHeight: 140, objectFit: 'cover', filter: 'grayscale(100%)', marginBottom: 8, borderRadius: 4 }}
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              height: 'auto',
+              aspectRatio: '16/9',
+              objectFit: 'cover',
+              objectPosition: 'center top',
+              filter: 'grayscale(100%)',
+              borderRadius: '4px',
+              marginBottom: '12px',
+              display: 'block'
+            }}
             onError={e => { e.target.style.display = 'none'; }}
           />
           <p style={{ fontFamily: 'Chalkduster, cursive', fontSize: '1.2rem', color: '#C1361D', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.5 }}>
@@ -674,7 +685,6 @@ function Step3Ranking({ response, onBack, onNext }) {
                   <span className="muted" style={{ margin: '0 5px', fontWeight: 400 }}>over</span>
                   <span>{under}</span>
                 </div>
-                <p className="small muted" style={{ marginTop: 2, lineHeight: 1.4 }}>{shift.description}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
                 <button className="btn-ghost btn btn-sm" style={{ padding: '2px 6px' }} onClick={() => moveUp(rankPos)} disabled={rankPos === 0} title="Move up">↑</button>
