@@ -444,7 +444,7 @@ function PulseCard({ element, index, value, onChange }) {
 
 // ── Heart/Head/Hands Card ────────────────────────────────────
 function HeartHeadHandsCard({ element }) {
-  const photoSrc = `images/pct${element.n}.png`;
+  const photoSrc = `/images/pct${element.n}.png`;
   return (
     <div style={{ border: '2px solid #C1361D', borderRadius: 8, padding: 24, marginTop: 20 }}>
       {/* Oval badge */}
@@ -475,7 +475,7 @@ function HeartHeadHandsCard({ element }) {
           <img
             src={photoSrc}
             alt={element.heart_attribution || `PCT ${element.n}`}
-            style={{ width: '100%', maxHeight: 160, objectFit: 'cover', filter: 'grayscale(100%)', marginBottom: 8, borderRadius: 4 }}
+            style={{ width: '100%', maxHeight: 140, objectFit: 'cover', filter: 'grayscale(100%)', marginBottom: 8, borderRadius: 4 }}
             onError={e => { e.target.style.display = 'none'; }}
           />
           <p style={{ fontFamily: 'Chalkduster, cursive', fontSize: '1.2rem', color: '#C1361D', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.5 }}>
