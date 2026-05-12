@@ -1,11 +1,18 @@
-// Radar Chart using Chart.js — handles label layout automatically
+// Radar Chart using Chart.js
 function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
+  // Defensive: fill missing values with 0
+  if (!scores || scores.length < 10) {
+    console.warn('Radar: scores prop missing or incomplete', scores);
+  }
+  const safeScores = Array(10).fill(0).map((_, i) =>
+    (scores && scores[i] != null && !isNaN(scores[i])) ? scores[i] : 0
+  );
+
   const canvasRef = React.useRef(null);
   const chartRef = React.useRef(null);
   const hasOrg = orgScores && orgScores.length === 10;
 
   const labels = PCT_ELEMENTS.map(el => {
-    // Wrap long titles across multiple lines for Chart.js
     const words = el.title.split(' ');
     const lines = [];
     let line = '';
@@ -25,27 +32,25 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
     if (!canvasRef.current) return;
     if (typeof Chart === 'undefined') return;
 
-    // Destroy previous instance
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
 
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    const tickColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)';
-    const labelColor = isDark ? '#c8cbc9' : '#3a3f3d';
-    const accentColor = '#1f6f5c';
-    const amberColor = '#f59e0b';
+    const gridColor   = 'rgba(0,0,0,0.10)';
+    const tickColor   = 'rgba(0,0,0,0.30)';
+    const labelColor  = '#1A1A1A';
+    const redColor    = '#C1361D';
+    const greyColor   = '#888888';
 
     const datasets = [
       {
         label: hasOrg ? 'Leadership' : 'You',
-        data: scores && scores.length === 10 ? scores.map(s => s || 0) : Array(10).fill(0),
-        backgroundColor: 'rgba(31,111,92,0.15)',
-        borderColor: accentColor,
+        data: safeScores,
+        backgroundColor: 'rgba(193,54,29,0.10)',
+        borderColor: redColor,
         borderWidth: 2.5,
-        pointBackgroundColor: accentColor,
+        pointBackgroundColor: redColor,
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         pointRadius: 5,
@@ -58,10 +63,10 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
         label: 'Cohort Avg',
         data: cohortScores.map(s => s || 0),
         backgroundColor: 'rgba(0,0,0,0)',
-        borderColor: 'rgba(100,100,100,0.5)',
+        borderColor: greyColor,
         borderWidth: 1.5,
         borderDash: [5, 3],
-        pointBackgroundColor: 'rgba(100,100,100,0.5)',
+        pointBackgroundColor: greyColor,
         pointBorderColor: '#fff',
         pointBorderWidth: 1.5,
         pointRadius: 4,
@@ -70,14 +75,17 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
     }
 
     if (hasOrg) {
+      const safeOrg = Array(10).fill(0).map((_, i) =>
+        (orgScores[i] != null && !isNaN(orgScores[i])) ? orgScores[i] : 0
+      );
       datasets.push({
-        label: 'Organizational',
-        data: orgScores.map(s => s || 0),
-        backgroundColor: 'rgba(245,158,11,0.10)',
-        borderColor: amberColor,
+        label: 'Organisational People',
+        data: safeOrg,
+        backgroundColor: 'rgba(136,136,136,0.08)',
+        borderColor: greyColor,
         borderWidth: 2,
         borderDash: [6, 3],
-        pointBackgroundColor: amberColor,
+        pointBackgroundColor: greyColor,
         pointBorderColor: '#fff',
         pointBorderWidth: 1.5,
         pointRadius: 4,
@@ -100,32 +108,20 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
               stepSize: 1,
               color: tickColor,
               backdropColor: 'transparent',
-              font: { size: 10, family: "'JetBrains Mono', monospace" },
+              font: { size: 10, family: "'Chalkduster', 'Comic Sans MS', cursive" },
               callback: v => v === 0 ? '' : v,
             },
-            grid: {
-              color: gridColor,
-              lineWidth: 1,
-            },
-            angleLines: {
-              color: gridColor,
-              lineWidth: 1.5,
-            },
+            grid: { color: gridColor, lineWidth: 1 },
+            angleLines: { color: gridColor, lineWidth: 1.5 },
             pointLabels: {
-              color: ctx => {
-                return ctx.index !== undefined ? accentColor : labelColor;
-              },
-              font: ctx => {
-                return {
-                  size: 11,
-                  weight: ctx.dataIndex === 0 ? '700' : '400',
-                  family: "'Inter', system-ui, sans-serif",
-                };
+              color: labelColor,
+              font: {
+                size: 11,
+                weight: '700',
+                family: "'Chalkduster', 'Comic Sans MS', cursive",
               },
               padding: 12,
-              callback: function(label) {
-                return label;
-              }
+              callback: function(label) { return label; }
             },
           }
         },
@@ -135,7 +131,7 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
             position: 'bottom',
             labels: {
               color: labelColor,
-              font: { size: 12, family: "'Inter', system-ui, sans-serif" },
+              font: { size: 12, family: "'Chalkduster', 'Comic Sans MS', cursive" },
               padding: 20,
               usePointStyle: true,
               pointStyleWidth: 20,
@@ -149,8 +145,8 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
               },
               label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}/7`,
             },
-            backgroundColor: 'rgba(26,29,28,0.9)',
-            titleFont: { size: 12, weight: '600' },
+            backgroundColor: 'rgba(26,26,26,0.92)',
+            titleFont: { size: 12, weight: '700' },
             bodyFont: { size: 12 },
             padding: 10,
             cornerRadius: 6,
@@ -160,15 +156,12 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
     });
 
     return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
-      }
+      if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
     };
   }, [scores, cohortScores, showCohort, orgScores]);
 
-  const avg = scores && scores.length
-    ? (scores.filter(Boolean).reduce((a, b) => a + b, 0) / scores.filter(Boolean).length).toFixed(1)
+  const avg = safeScores.filter(Boolean).length
+    ? (safeScores.filter(Boolean).reduce((a, b) => a + b, 0) / safeScores.filter(Boolean).length).toFixed(1)
     : null;
 
   return (
@@ -178,9 +171,9 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
           display: 'flex',
           justifyContent: 'flex-end',
           marginBottom: 8,
-          fontFamily: 'var(--font-mono)',
+          fontFamily: "'Chalkduster', 'Comic Sans MS', cursive",
           fontSize: '.875rem',
-          color: 'var(--accent)',
+          color: '#C1361D',
           fontWeight: 700
         }}>
           Overall avg: {avg}/7
@@ -194,15 +187,15 @@ function RadarChart({ scores, cohortScores, showCohort, orgScores }) {
           justifyContent: 'center',
           marginTop: 12,
           fontSize: '.8125rem',
-          fontFamily: 'var(--f-head)',
+          fontFamily: "'Chalkduster', 'Comic Sans MS', cursive",
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#1f6f5c', display: 'inline-block' }} />
+            <span style={{ width: 14, height: 3, background: '#C1361D', display: 'inline-block', borderRadius: 2 }} />
             Leadership
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-            Organizational
+            <span style={{ width: 14, height: 3, background: '#888888', display: 'inline-block', borderRadius: 2, opacity: .8 }} />
+            Organisational People
           </span>
         </div>
       )}

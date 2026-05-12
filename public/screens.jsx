@@ -333,12 +333,14 @@ function Step1Pulse({ response, onBack, onNext, autosave }) {
 
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 720 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
         <div>
           <h2>PCT Pulse Check</h2>
           <p className="muted">Rate how strongly you agree with each statement about your organization's leaders.</p>
         </div>
-        <div className="badge badge-gray">{answeredCount}/10 answered</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div className="badge badge-gray">{answeredCount}/10 answered</div>
+        </div>
       </div>
 
       <PDFVisual concept="pulse-intro" style={{ marginBottom: 16 }} />
@@ -391,26 +393,43 @@ function Step2Priority({ response, onBack, onNext }) {
     try { return JSON.parse(response?.scores || '[]'); } catch { return []; }
   }, [response]);
 
+  // Sort indices by ascending score (lowest = highest priority)
+  const sortedIndices = React.useMemo(() => {
+    const indices = PCT_ELEMENTS.map((_, i) => i);
+    if (!scores.length) return indices;
+    return indices.sort((a, b) => {
+      const sa = scores[a] != null ? scores[a] : 99;
+      const sb = scores[b] != null ? scores[b] : 99;
+      return sa - sb;
+    });
+  }, [scores]);
+
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 820 }}>
       <div style={{ marginBottom: 24 }}>
         <h2>Choose Your Priority Element</h2>
-        <p className="muted">Select the one PCT element you want to focus on most for your personal leadership development.</p>
+        <p className="muted">Select the one PCT element you want to focus on. Cards are sorted by lowest score first — these are your highest-priority areas.</p>
       </div>
 
       <div className="priority-grid">
-        {PCT_ELEMENTS.map((el, i) => (
-          <div key={el.n} className={`priority-card ${selected === i ? 'selected' : ''}`} onClick={() => setSelected(i)}>
-            <div className="priority-card-num">PCT {el.n}</div>
-            <div className="priority-card-title">{el.title}</div>
-            <div className="priority-card-quadrant">
-              <span className={`badge q-${el.quadrant.toLowerCase()}`} style={{ marginRight: 6 }}>{el.quadrant}</span>
-              {scores[i] !== null && scores[i] !== undefined && (
-                <span className="small muted">Score: {scores[i]}/7</span>
+        {sortedIndices.map(i => {
+          const el = PCT_ELEMENTS[i];
+          const score = scores[i];
+          return (
+            <div key={el.n} className={`priority-card ${selected === i ? 'selected' : ''}`} onClick={() => setSelected(i)}>
+              <div className="priority-card-num">PCT {el.n}</div>
+              <div className="priority-card-title">{el.title}</div>
+              {score != null && (
+                <div style={{ marginBottom: 6, color: 'var(--red)', fontSize: '.8125rem', fontWeight: 700 }}>
+                  You rated: {score} / 7
+                </div>
               )}
+              <div className="priority-card-quadrant">
+                <span className={`badge q-${el.quadrant.toLowerCase()}`}>{el.quadrant}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {selected !== null && (
@@ -617,16 +636,15 @@ function ShiftActivatorCard({ rank, shift, mbd, isTopRanked, onChange }) {
   const under = parts.slice(1).join(' over ');
 
   return (
-    <div className="card" style={{ marginBottom: 14, borderLeft: isTopRanked ? '3px solid var(--accent)' : undefined }}>
+    <div className="card" style={{ marginBottom: 14, borderLeft: isTopRanked ? '3px solid var(--red)' : undefined }}>
       <div onClick={() => setExpanded(!expanded)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 24, flexShrink: 0 }}>#{rank}</span>
+        <span style={{ fontFamily: 'var(--f-head)', fontSize: '.75rem', color: 'var(--ink-4)', minWidth: 24, flexShrink: 0 }}>#{rank}</span>
         <div style={{ flex: 1 }}>
           <span className="small" style={{ fontWeight: 600 }}>
-            <strong>{over}</strong>
-            <span className="muted" style={{ fontWeight: 400, margin: '0 5px' }}>over</span>
-            {under}
+            To <span style={{ color: 'var(--red)', fontWeight: 700 }}>SHIFT</span> towards{' '}
+            <span style={{ color: 'var(--red)', fontFamily: 'var(--f-head)', fontWeight: 700 }}>{over} over {under}</span>.
           </span>
-          {isTopRanked && <span className="badge badge-blue" style={{ marginLeft: 8, fontSize: '.6rem', verticalAlign: 'middle' }}>Primary Focus</span>}
+          {isTopRanked && <span className="badge badge-red" style={{ marginLeft: 8, fontSize: '.6rem', verticalAlign: 'middle' }}>Primary Focus</span>}
         </div>
         <span className={`chevron ${expanded ? 'open' : ''}`} style={{ flexShrink: 0 }}>▶</span>
       </div>
@@ -640,8 +658,8 @@ function ShiftActivatorCard({ rank, shift, mbd, isTopRanked, onChange }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
             <div className="form-group">
               <label className="form-label">
-                I will know this shift is complete when…
-                {isTopRanked && <span style={{ color: 'var(--accent)', marginLeft: 4 }}>*</span>}
+                <span style={{ color: 'var(--red)', fontFamily: 'var(--f-head)' }}>SHIFT is COMPLETE</span> when…
+                {isTopRanked && <span style={{ color: 'var(--red)', marginLeft: 4 }}>*</span>}
               </label>
               <textarea className="form-textarea" value={mbd.completeWhen || ''} onChange={e => onChange('completeWhen', e.target.value)} placeholder="Describe a specific, observable behavior or outcome that signals success" rows={3} />
             </div>
@@ -663,9 +681,13 @@ function ShiftActivatorCard({ rank, shift, mbd, isTopRanked, onChange }) {
 }
 
 function ActivatorGroup({ title, subtitle, values, onChange }) {
+  const keyMap = { 'MORE OF': 'MORE OF', 'BETTER': 'BETTER', 'DIFFERENTLY': 'DIFFERENTLY' };
+  const key = keyMap[title] || title;
   return (
     <div className="activator-section">
-      <div className="activator-header">{title}</div>
+      <div className="activator-header">
+        Three things we must do <span style={{ color: 'var(--red)' }}>{key}</span>
+      </div>
       <div className="activator-body">
         <p className="small muted" style={{ marginBottom: 4 }}>{subtitle}</p>
         {[0, 1, 2].map(i => (
@@ -758,9 +780,9 @@ function Step5Summary({ response, cohort, cohortId, responseId }) {
     ? (scores.filter(Boolean).reduce((a, b) => a + b, 0) / scores.filter(Boolean).length).toFixed(1)
     : null;
 
-  // What to show on the radar
-  const radarScores  = radarReleased && leadershipRadar ? leadershipRadar : scores;
-  const radarOrgData = radarReleased ? orgRadar : null;
+  // Personal radar always shows personal scores
+  const radarScores  = scores;
+  const radarOrgData = null;
 
   return (
     <div className="page-center" style={{ paddingTop: 32, maxWidth: 760 }}>
@@ -783,12 +805,14 @@ function Step5Summary({ response, cohort, cohortId, responseId }) {
               : null}
         </div>
         <div style={{ padding: '8px 0', minHeight: 480 }}>
-          <RadarChart
-            scores={radarScores}
-            cohortScores={null}
-            showCohort={false}
-            orgScores={radarOrgData}
-          />
+          {radarScores && radarScores.length === 10 && (
+            <RadarChart
+              scores={radarScores}
+              cohortScores={null}
+              showCohort={false}
+              orgScores={null}
+            />
+          )}
         </div>
       </div>
 
@@ -805,16 +829,6 @@ function Step5Summary({ response, cohort, cohortId, responseId }) {
           ))}
         </div>
       </div>
-
-      {/* PCT Priority Rankings */}
-      {cohortId && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="card-header"><h3>PCT Priority Rankings</h3></div>
-          <div style={{ padding: '8px 0' }}>
-            <PCTRankingsTable cohortId={cohortId} audience={radarAudience} />
-          </div>
-        </div>
-      )}
 
       {/* Priority + Activation Plan */}
       {priorityEl && (
@@ -909,6 +923,41 @@ function Step5Summary({ response, cohort, cohortId, responseId }) {
 
       {/* Thematic Summary (only when cohort avg is released) */}
       {cohortId && radarReleased && <ThematicSummary cohortId={cohortId} />}
+
+      {/* Cohort Summary — only when released */}
+      {cohortId && radarReleased && leadershipRadar && (
+        <div style={{ marginTop: 40, borderTop: '2px solid var(--line)', paddingTop: 32 }}>
+          <h2 style={{ color: 'var(--red)', fontFamily: 'var(--f-head)', fontWeight: 700, marginBottom: 24 }}>
+            Cohort Pulse · {cohort?.name}
+          </h2>
+
+          {/* Section A: Cohort Average Radar */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-header">
+              <h3>Cohort Average</h3>
+              <span className="badge badge-gray">Leadership</span>
+            </div>
+            <div style={{ padding: '8px 0', minHeight: 480 }}>
+              {leadershipRadar && leadershipRadar.length === 10 && (
+                <RadarChart
+                  scores={leadershipRadar}
+                  cohortScores={null}
+                  showCohort={false}
+                  orgScores={radarAudience === 'mixed' && orgRadar && orgRadar.length === 10 ? orgRadar : null}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Section C: PCT Priority Rankings */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-header"><h3>PCT Priority Rankings</h3></div>
+            <div style={{ padding: '8px 0' }}>
+              <PCTRankingsTable cohortId={cohortId} audience={radarAudience} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1059,21 +1108,23 @@ function MBDExpandedBlock({ el, mbdInputs, onUpdate }) {
         const under = parts.slice(1).join(' over ');
 
         return (
-          <div key={shiftPos} style={{ marginBottom: 28, borderLeft: '3px solid var(--accent)', paddingLeft: 16 }}>
-            <p style={{ fontWeight: 700, marginBottom: 16 }}>
-              Shift {shiftPos + 1} —{' '}
-              <strong>{over}</strong>
-              <span className="muted" style={{ fontWeight: 400 }}> over </span>
-              {under}
+          <div key={shiftPos} style={{ marginBottom: 28, borderLeft: '3px solid var(--red)', paddingLeft: 16 }}>
+            <p style={{ fontWeight: 700, marginBottom: 16, fontFamily: 'var(--f-head)' }}>
+              To <span style={{ color: 'var(--red)' }}>SHIFT</span> towards{' '}
+              <span style={{ color: 'var(--red)', fontFamily: 'var(--f-head)' }}>
+                {over} over {under}
+              </span>.
             </p>
 
             {[
-              { field: 'moreOf',      label: 'THREE THINGS WE MUST DO MORE OF' },
-              { field: 'better',      label: 'THREE THINGS WE MUST DO BETTER' },
-              { field: 'differently', label: 'THREE THINGS WE MUST DO DIFFERENTLY' }
-            ].map(({ field, label }) => (
+              { field: 'moreOf',      key: 'MORE OF' },
+              { field: 'better',      key: 'BETTER' },
+              { field: 'differently', key: 'DIFFERENTLY' }
+            ].map(({ field, key }) => (
               <div key={field} style={{ marginBottom: 16 }}>
-                <div className="mbd-header" style={{ marginBottom: 8 }}>{label}</div>
+                <div className="mbd-header" style={{ marginBottom: 8 }}>
+                  Three things we must do <span className="mbd-key">{key}</span>
+                </div>
                 {[0, 1, 2].map(i => (
                   <input
                     key={i}
@@ -1088,7 +1139,9 @@ function MBDExpandedBlock({ el, mbdInputs, onUpdate }) {
             ))}
 
             <div>
-              <div className="mbd-header" style={{ marginBottom: 8 }}>SHIFT IS COMPLETE WHEN</div>
+              <div className="mbd-header" style={{ marginBottom: 8 }}>
+                <span className="mbd-key">SHIFT is COMPLETE</span> when…
+              </div>
               <input
                 className="form-input"
                 value={mbd.completeWhen || ''}

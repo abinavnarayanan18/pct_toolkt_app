@@ -58,7 +58,7 @@ function AdminApp() {
     if (selectedCohort) loadResponses(selectedCohort.id);
   }, [selectedCohort]);
 
-  if (!token) return <AdminLogin onLogin={t => { localStorage.setItem('pct_admin_token', t); setToken(t); }} />;
+  if (!token) return <AdminLogin onLogin={t => { localStorage.setItem('pct_admin_token', t); setToken(t); }} showOnMount={false} />;
 
   return (
     <div className="admin-layout">
@@ -163,11 +163,32 @@ function AdminApp() {
 }
 
 // ── Admin Login ──────────────────────────────────────────────
-function AdminLogin({ onLogin }) {
+function AdminLogin({ onLogin, showOnMount }) {
+  const [showForm, setShowForm] = React.useState(showOnMount !== false);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+
+  if (!showForm) {
+    return (
+      <div className="page-center" style={{ paddingTop: 80, maxWidth: 440 }}>
+        <div className="card card-lg" style={{ textAlign: 'center' }}>
+          <div className="brand-mark" style={{ width: 56, height: 56, fontSize: '1rem', margin: '0 auto 16px' }}>PCT</div>
+          <h2 style={{ marginBottom: 8 }}>Facilitator Console</h2>
+          <p className="muted small" style={{ marginBottom: 24, lineHeight: 1.7 }}>
+            Manage cohorts, view responses, and release insights to participants.
+          </p>
+          <button
+            className="btn btn-primary btn-lg w-full"
+            onClick={() => setShowForm(true)}
+          >
+            Sign In →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -291,7 +312,7 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
             <thead>
               <tr>
                 <th>Cohort</th><th>Sponsor</th><th>Status</th><th>Audience</th>
-                <th>Target</th><th>Responses</th><th>Actions</th>
+                <th>Target</th><th title="saved = started · submitted = complete">Responses</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -311,7 +332,11 @@ function AdminCohorts({ cohorts, token, onSelect, onRefresh, onNew }) {
                     </span>
                   </td>
                   <td>{c.target}</td>
-                  <td>{c.response_count || 0} / {c.submitted_count || 0} submitted</td>
+                  <td>
+                    <span title="saved = started · submitted = complete">
+                      {c.response_count || 0} saved / {c.submitted_count || 0} submitted
+                    </span>
+                  </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => onSelect(c)}>View</button>
@@ -370,17 +395,23 @@ function AdminResponses({ cohorts, selectedCohort, responses, token, aiAvailable
             <>
               <button className="btn btn-secondary btn-sm" onClick={onRefresh}>↺ Refresh</button>
               <button className="btn btn-secondary btn-sm" onClick={handleExport}>⬇ CSV</button>
-              <button className="btn btn-secondary btn-sm" onClick={onToggleRelease} title="Toggle cohort average visibility for participants">
-                {cohort.cohort_avg_released ? '🔒 Hide Avg' : '📊 Release Avg'}
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={handleComputeDeltas}
-                disabled={deltaLoading}
-                title="Compute deltas and release rankings to participants"
-              >
-                {deltaLoading ? <><span className="spinner" style={{ width: 12, height: 12 }} /> Computing…</> : '📊 Compute Deltas & Release'}
-              </button>
+              {cohort.cohort_avg_released ? (
+                <button className="btn btn-secondary btn-sm" onClick={onToggleRelease} title="Hide cohort summary from participants">
+                  🔒 Hide Cohort Summary
+                </button>
+              ) : (
+                <button
+                  className="btn btn-secondary btn-sm release-avg-btn"
+                  onClick={handleComputeDeltas}
+                  disabled={deltaLoading}
+                  title="Compute deltas and release cohort summary to participants"
+                >
+                  {deltaLoading
+                    ? <><span className="spinner" style={{ width: 12, height: 12 }} /> Computing…</>
+                    : '📊 Release Cohort Summary'}
+                  <span className="tooltip">Computes leadership vs org deltas, then releases cohort radar and rankings to all participants.</span>
+                </button>
+              )}
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => { setShowSynth(true); onSynthesize(); }}
