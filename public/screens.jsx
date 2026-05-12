@@ -139,7 +139,7 @@ function ParticipantApp({ cohortId: urlCohortId }) {
     { label: 'Priority',   n: 2 },
     { label: 'Rank Shifts',n: 3 },
     { label: 'Activators', n: 4 },
-    { label: 'Summary',    n: 5 }
+    { label: 'Summary',    n: 6 }
   ];
 
   return (
@@ -201,6 +201,9 @@ function ParticipantApp({ cohortId: urlCohortId }) {
         />
       )}
       {step === 5 && (
+        <StepThankYou onNext={() => setStep(6)} />
+      )}
+      {step === 6 && (
         <Step5Summary
           response={response}
           cohort={cohort}
@@ -757,7 +760,19 @@ function Step4Activators({ response, onBack, onNext, autosave }) {
         </p>
       </div>
 
-      <MBDIntroPanel />
+      <img
+        src={`/images/pct${priorityEl.n}-mbd.png`}
+        alt={`PCT ${priorityEl.n} MBD Activators`}
+        style={{
+          width: '100%',
+          maxWidth: '600px',
+          height: 'auto',
+          objectFit: 'contain',
+          borderRadius: '4px',
+          display: 'block',
+          margin: '0 auto 24px'
+        }}
+      />
 
       {ranking.map((shiftIdx, rankPos) => {
         const shift = priorityEl.shifts[shiftIdx];
@@ -857,7 +872,42 @@ function ActivatorGroup({ title, subtitle, values, onChange }) {
   );
 }
 
-// ── Step 5: Summary ──────────────────────────────────────────
+// ── Step 5: Thank You ────────────────────────────────────────
+function StepThankYou({ onNext }) {
+  return (
+    <div className="page-center" style={{ paddingTop: 48, paddingBottom: 48, textAlign: 'center', background: '#fff' }}>
+      <img
+        src="/images/thank-you.png"
+        alt="Thank You"
+        style={{ width: '100%', maxWidth: '700px', height: 'auto', display: 'block', margin: '0 auto 32px' }}
+      />
+      <div style={{ marginBottom: 12 }}>
+        <span style={{ fontFamily: 'Chalkduster, cursive', fontSize: '2rem', color: '#1A1A1A' }}>Thank</span>
+        <span style={{ fontFamily: 'Chalkduster, cursive', fontSize: '2rem', color: '#C1361D' }}> YOU</span>
+      </div>
+      <p style={{ fontFamily: 'Chalkduster, cursive', fontSize: '1.5rem', color: '#1A1A1A', textAlign: 'center', marginBottom: 32 }}>
+        Go Raibh Mile Maith Agat!
+      </p>
+      <button
+        onClick={onNext}
+        style={{
+          background: '#C1361D',
+          color: '#fff',
+          fontFamily: 'Chalkduster, cursive',
+          padding: '12px 32px',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '1rem',
+          cursor: 'pointer'
+        }}
+      >
+        View My Summary →
+      </button>
+    </div>
+  );
+}
+
+// ── Step 6: Summary ──────────────────────────────────────────
 function Step5Summary({ response, cohort, cohortId, responseId }) {
   const [submitted, setSubmitted] = React.useState(!!response?.submitted_at);
   const [aiSummary, setAiSummary] = React.useState(() => {
